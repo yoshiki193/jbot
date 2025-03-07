@@ -3,5 +3,7 @@ services:
     build: .
     working_dir: "/root/opt"
     tty: true
+    environment:
+      - token=${API_TOKEN}
     volumes:
       - ./src:/root/opt
