@@ -1,0 +1,13 @@
+{
+    "name": "jbot",
+    "service": "jbot",
+    "dockerComposeFile":["../docker-compose.yml"],
+    "workspaceFolder": "/root/opt/",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python"
+            ]
+        }
+    }
+}

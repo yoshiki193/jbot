@@ -1,0 +1,7 @@
+services:
+  jbot:
+    build: .
+    working_dir: "/root/opt"
+    tty: true
+    volumes:
+      - ./src:/root/opt
