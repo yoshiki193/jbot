@@ -69,6 +69,18 @@ class command(commands.Cog):
 
             with open('data.json', 'w') as f:
                 json.dump(data, f, indent = 2)
+        elif message.author != self.bot.user and message.channel.id != self.send_channel_id:
+            with open('data.json') as f:
+                data:dict = json.load(f)              
+            if str(message.channel.id) in [i for i in data['announcement']]:
+                last_message = await message.channel.fetch_message(data['announcement'][str(message.channel.id)]['messageId'])
+                await last_message.delete()
+                send_message = await message.channel.send(content=data['announcement'][str(message.channel.id)]['value'])
+                data['announcement'][str(message.channel.id)]['messageId'] = send_message.id
+                with open('data.json', 'w') as f:
+                    json.dump(data, f, indent = 2)
+
+            
 
     
     @discord.app_commands.command(
@@ -83,9 +95,44 @@ class command(commands.Cog):
         data['list'] = data_list
 
         with open('data.json', 'w') as f:
-                json.dump(data, f, indent = 2)
+            json.dump(data, f, indent = 2)
         
         await interaction.response.send_message(content=f'updated\t{member.display_name}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    
+    @discord.app_commands.command(
+        description = "announcement"
+    )
+    @discord.app_commands.describe(mode="モードの指定")
+    @discord.app_commands.choices(mode=[
+        discord.app_commands.Choice(name="新規", value="new"),
+        discord.app_commands.Choice(name="削除", value="delete"),
+    ])
+    async def announcement(self,interaction:discord.Interaction,mode:discord.app_commands.Choice[str],text:str = None):
+        if mode.value == "new" and interaction.channel_id != self.send_channel_id and text != None:
+            with open('data.json') as f:
+                data:dict = json.load(f)
 
+            data['announcement'][interaction.channel_id] = {}
+            data['announcement'][interaction.channel_id]['value'] = text
+            last_message = await interaction.response.send_message(content=text)
+            data['announcement'][interaction.channel_id]['messageId'] = last_message.message_id
+
+            with open('data.json', 'w') as f:
+                json.dump(data, f, indent = 2)
+        elif mode.value == "delete" and interaction.channel_id != self.send_channel_id and text == None:
+            with open('data.json') as f:
+                data:dict = json.load(f)
+            
+            if str(interaction.channel_id) in [i for i in data['announcement']]:
+                data['announcement'].pop(str(interaction.channel_id))
+
+                with open('data.json', 'w') as f:
+                    json.dump(data, f, indent = 2)
+                
+                await interaction.response.send_message(content='complete')
+            else:
+                await interaction.response.send_message(content='error',silent=True)
+        else:
+            await interaction.response.send_message(content="error",silent=True)
 async def setup(bot:commands.Bot):
     await bot.add_cog(command(bot))
