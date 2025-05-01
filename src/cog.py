@@ -129,7 +129,7 @@ class command(commands.Cog):
                 with open('data.json', 'w') as f:
                     json.dump(data, f, indent = 2)
                 
-                await interaction.response.send_message(content='complete')
+                await interaction.response.send_message(content='complete',silent=True)
             else:
                 await interaction.response.send_message(content='error',silent=True)
         else:
