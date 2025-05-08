@@ -57,7 +57,7 @@ class command(commands.Cog):
                 send_channel:discord.TextChannel = await self.bot.fetch_channel(data['sendChannelId'])
                 last_message:discord.Message = await send_channel.fetch_message(data['lastMessageId'])
                 await last_message.delete()
-                send_message = await message.channel.send(embed = discord.Embed.from_dict(await self.generate_embed()))
+                send_message = await message.channel.send(embed = discord.Embed.from_dict(await self.generate_embed()),silent=True)
                 data['lastMessageId'] = send_message.id
 
             with open('data.json', 'w') as f:
@@ -68,7 +68,7 @@ class command(commands.Cog):
             if str(message.channel.id) in [i for i in data['announcement']]:
                 last_message = await message.channel.fetch_message(data['announcement'][str(message.channel.id)]['messageId'])
                 await last_message.delete()
-                send_message = await message.channel.send(content=data['announcement'][str(message.channel.id)]['value'])
+                send_message = await message.channel.send(content=data['announcement'][str(message.channel.id)]['value'],silent=True)
                 data['announcement'][str(message.channel.id)]['messageId'] = send_message.id
 
                 with open('data.json', 'w') as f:
