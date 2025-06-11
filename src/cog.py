@@ -81,7 +81,7 @@ class command(commands.Cog):
         if before.channel != after.channel:
             with open('data.json') as f:
                 data:dict = json.load(f)
-            if len(data['vcstate']) > 10 and len(data['vcstate']) != 0:
+            if len(data['vcstate']) > 5 and len(data['vcstate']) != 0:
                 data['vcstate'].pop(0)
             if before.channel == None:
                 data['vcstate'].append([f'{member.display_name}が{after.channel.name}に接続しました',f'{datetime.datetime.now().replace(microsecond=0)}'])
