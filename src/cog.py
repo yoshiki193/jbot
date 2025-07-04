@@ -80,7 +80,7 @@ class command(commands.Cog):
                 json.dump(data, f, indent = 2)
         
         if message.channel.id in [i for i in data["activeVV"]]:
-            text_hash = await main(message.content, 0)
+            text_hash = await main(message.content, self.style)
             self.vc.play(discord.FFmpegPCMAudio(text_hash))
             while self.vc.is_playing():
                 await asyncio.sleep(1)
@@ -123,8 +123,9 @@ class command(commands.Cog):
     @discord.app_commands.command(
         description = "connect VV"
     )
-    async def connect_vv(self, interaction:discord.Interaction):
+    async def connect_vv(self, interaction:discord.Interaction, style_id:int = 0):
         self.vc = await interaction.channel.connect()
+        self.style = style_id
 
         with open("data.json") as f:
             data:dict = json.load(f)
