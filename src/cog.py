@@ -1,9 +1,12 @@
+import asyncio
 import discord
 from discord.ext import commands
 import json
 import logging
 import math
 import datetime
+from vv import main
+import os
 
 logging.basicConfig(
     level = logging.INFO,
@@ -75,6 +78,13 @@ class command(commands.Cog):
 
             with open('data.json', 'w') as f:
                 json.dump(data, f, indent = 2)
+        
+        if message.channel.id in [i for i in data["activeVV"]]:
+            text_hash = await main(message.content, 0)
+            self.vc.play(discord.FFmpegPCMAudio(text_hash))
+            while self.vc.is_playing():
+                await asyncio.sleep(1)
+            os.remove(text_hash)
     
     @commands.Cog.listener()
     async def on_voice_state_update(self,member:discord.Member,before:discord.VoiceState,after:discord.VoiceState):
@@ -109,6 +119,40 @@ class command(commands.Cog):
             json.dump(data, f, indent = 2)
         
         await interaction.response.send_message(content=f'updated\t{member.display_name}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    
+    @discord.app_commands.command(
+        description = "connect VV"
+    )
+    async def connect_vv(self, interaction:discord.Interaction):
+        self.vc = await interaction.channel.connect()
+
+        with open("data.json") as f:
+            data:dict = json.load(f)
+
+        data["activeVV"].append(interaction.channel_id)
+
+        with open("data.json", "w") as f:
+            json.dump(data, f, indent = 2)
+
+        await interaction.response.send_message(content="connected")
+    
+    @discord.app_commands.command(
+        description = "disconnect VV"
+    )
+    async def disconnect_vv(self, interaction:discord.Interaction):
+        await self.vc.disconnect()
+
+        with open("data.json") as f:
+            data:dict = json.load(f)
+
+        for i, j in enumerate(data["activeVV"]):
+            if j == interaction.channel_id:
+                data["activeVV"].pop(i)
+
+        with open("data.json", "w") as f:
+            json.dump(data, f, indent = 2)
+        
+        await interaction.response.send_message(content="disconnected")
 
 async def setup(bot:commands.Bot):
     await bot.add_cog(command(bot))
