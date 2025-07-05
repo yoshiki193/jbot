@@ -1,7 +1,4 @@
-import asyncio
-import hashlib
 import multiprocessing
-from pathlib import Path
 from voicevox_core.asyncio import Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile
 
 async def main(text:str, style_id:int) -> str:
@@ -21,8 +18,5 @@ async def main(text:str, style_id:int) -> str:
 
     audio_query = await synthesizer.create_audio_query(text, style_id)
     wav = await synthesizer.synthesis(audio_query, style_id)
-    text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-    out = Path(text_hash)
-    out.write_bytes(wav)
 
-    return text_hash
+    return wav
