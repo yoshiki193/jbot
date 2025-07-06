@@ -84,30 +84,12 @@ class command(commands.Cog):
             wav = await main(message.content, self.style)
             buffer = io.BytesIO(wav)
             buffer.seek(0)
-            ffmpeg_process = subprocess.Popen(
-                [
-                    "ffmpeg",
-                    "-i", "pipe:0",
-                    "-f", "s16le",
-                    "-ar", "48000",
-                    "-ac", "2",
-                    "pipe:1",
-                ],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-            )
-
-            await asyncio.to_thread(ffmpeg_process.stdin.write, buffer.read())
-            ffmpeg_process.stdin.close()
-            audio_source = discord.PCMAudio(ffmpeg_process.stdout)
+            
+            audio_source = FFmpegPCMAudio(buffer, pipe=True)
             self.vc.play(audio_source)
 
             while self.vc.is_playing():
                 await asyncio.sleep(0.5)
-
-            ffmpeg_process.stdout.close()
-            ffmpeg_process.wait()
     
     @commands.Cog.listener()
     async def on_voice_state_update(self,member:discord.Member,before:discord.VoiceState,after:discord.VoiceState):
