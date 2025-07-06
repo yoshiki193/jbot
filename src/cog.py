@@ -98,7 +98,7 @@ class command(commands.Cog):
                 stderr=subprocess.DEVNULL,
             )
 
-            ffmpeg_process.stdin.write(buffer.read())
+            await asyncio.to_thread(ffmpeg_process.stdin.write, buffer.read())
             ffmpeg_process.stdin.close()
             audio_source = discord.PCMAudio(ffmpeg_process.stdout)
             self.vc.play(audio_source)
