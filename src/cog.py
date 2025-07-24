@@ -7,7 +7,7 @@ import math
 import datetime
 from vv import main
 import io
-import subprocess
+from discord import FFmpegPCMAudio
 
 logging.basicConfig(
     level = logging.INFO,
