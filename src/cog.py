@@ -140,7 +140,7 @@ class command(commands.Cog):
         with open("data.json", "w") as f:
             json.dump(data, f, indent = 2)
 
-        await interaction.response.send_message(content="connected")
+        await interaction.response.send_message(content="接続しました")
     
     @discord.app_commands.command(
         description = "disconnect VV"
@@ -158,7 +158,7 @@ class command(commands.Cog):
         with open("data.json", "w") as f:
             json.dump(data, f, indent = 2)
         
-        await interaction.response.send_message(content="disconnected")
+        await interaction.response.send_message(content="切断しました")
 
 async def setup(bot:commands.Bot):
     await bot.add_cog(command(bot))
