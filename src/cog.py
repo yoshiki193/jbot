@@ -29,7 +29,6 @@ class command(commands.Cog):
             data:dict = json.load(f)
 
         data_list = data['list']
-        data_vcstate = data['vcstate']
         payload = []
 
         for i in data_list:
@@ -38,23 +37,11 @@ class command(commands.Cog):
                 'name':f'__{user.display_name}\t{data_list[i]}\t#1__' if data_list[i] == max(j for j in data_list.values()) else f'{user.display_name}\t{data_list[i]}',
                 'value':'█'*math.ceil((data_list[i]/max(j for j in data_list.values()))*10)
             })
-        
-        payload.append({
-            'name':'VC Log',
-            'value':'------------------------------'
-        })
-
-        for i in data_vcstate:
-            payload.append({
-                'name':i[0],
-                'value':i[1]
-            })
 
         embed = {
             'title':'**寝落ちカウンター**',
             'description':'コマンド：/add',
             'fields':payload,
-            'color':11584734,
             'thumbnail':{
                 'url':'https://cdn.wikiwiki.jp/to/w/kc-summary/eqgb/::attach/e065gb.png?rev=01386a742f306fe4398d5cf66da4ba28&t=20150123094908'
             }
@@ -89,25 +76,7 @@ class command(commands.Cog):
             self.vc.play(audio_source)
 
             while self.vc.is_playing():
-                await asyncio.sleep(0.5)
-    
-    @commands.Cog.listener()
-    async def on_voice_state_update(self,member:discord.Member,before:discord.VoiceState,after:discord.VoiceState):
-        if before.channel != after.channel:
-            with open('data.json') as f:
-                data:dict = json.load(f)
-            if len(data['vcstate']) > 5 and len(data['vcstate']) != 0:
-                data['vcstate'].pop(0)
-            if before.channel == None:
-                data['vcstate'].append([f'{member.display_name}が{after.channel.name}に接続しました',f'{datetime.datetime.now().replace(microsecond=0)}'])
-            elif after.channel == None:
-                data['vcstate'].append([f'{member.display_name}が{before.channel.name}から切断されました',f'{datetime.datetime.now().replace(microsecond=0)}'])
-            with open('data.json', 'w') as f:
-                json.dump(data, f, indent = 2)
-            send_channel:discord.TextChannel = await self.bot.fetch_channel(data['sendChannelId'])
-            last_message:discord.Message = await send_channel.fetch_message(data['lastMessageId'])
-            await last_message.edit(embed = discord.Embed.from_dict(await self.generate_embed()))
-            
+                await asyncio.sleep(0.5)            
 
     @discord.app_commands.command(
         description = 'add to counter'
