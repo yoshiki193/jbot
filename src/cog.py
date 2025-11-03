@@ -1,5 +1,5 @@
 import asyncio
-import requests
+import aiohttp
 import discord
 from discord.ext import commands
 import json
@@ -133,21 +133,22 @@ async def setup(bot:commands.Bot):
     await bot.add_cog(command(bot))
 
 async def synthesize(text:str, speaker:int):
-    query = requests.post(
-        f"{VOICEVOX_URL}/audio_query",
-        params={"text": text, "speaker": speaker},
-    )
-    query.raise_for_status()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{VOICEVOX_URL}/audio_query",
+            params={"text": text, "speaker": speaker}
+        ) as resp:
+            resp.raise_for_status()
+            query_json = await resp.json()
 
-    audio = requests.post(
-        f"{VOICEVOX_URL}/synthesis",
-        headers={"Content-Type": "application/json"},
-        params={"speaker": speaker},
-        data=query.text,
-    )
-    audio.raise_for_status()
+        async with session.post(
+            f"{VOICEVOX_URL}/synthesis",
+            params={"speaker": speaker},
+            json=query_json
+        ) as resp:
+            resp.raise_for_status()
+            wav_bytes = await resp.read()
 
-    wav_bytes = audio.content
     buffer = io.BytesIO(wav_bytes)
     buffer.seek(0)
     return buffer

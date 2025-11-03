@@ -1,7 +1,7 @@
 {
     "name": "jbot",
     "service": "jbot",
-    "dockerComposeFile":["../docker-compose.yml"],
+    "dockerComposeFile":["../docker-compose.yaml"],
     "workspaceFolder": "/root/opt/",
     "customizations": {
         "vscode": {
