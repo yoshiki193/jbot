@@ -7,6 +7,7 @@ import logging
 import math
 import datetime
 import io
+from collections import deque
 from discord import FFmpegPCMAudio
 
 VOICEVOX_URL = "http://192.168.0.71:50021"
@@ -25,6 +26,31 @@ logger.setLevel(logging.INFO)
 class command(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
+        self.audio_queue = deque()
+        self.audio_playing = False
+        self.queue_lock = asyncio.Lock()
+    
+    async def enqueue_audio(self, buffer):
+        async with self.queue_lock:
+            self.audio_queue.append(buffer)
+            if not self.audio_playing:
+                asyncio.create_task(self._play_next())
+
+    async def _play_next(self):
+        async with self.queue_lock:
+            if not self.audio_queue:
+                self.audio_playing = False
+                return
+            self.audio_playing = True
+            buffer = self.audio_queue.popleft()
+
+        audio_source = FFmpegPCMAudio(buffer, pipe=True)
+        self.vc.play(audio_source)
+
+        while self.vc.is_playing():
+            await asyncio.sleep(0.5)
+
+        await self._play_next()
 
     async def generate_embed(self):
         with open('data.json') as f:
@@ -71,12 +97,7 @@ class command(commands.Cog):
         
         if message.channel.id in [i for i in data["activeVV"]]:
             buffer = await synthesize(message.content, self.style)
-
-            audio_source = FFmpegPCMAudio(buffer, pipe=True)
-            self.vc.play(audio_source)
-
-            while self.vc.is_playing():
-                await asyncio.sleep(0.5)          
+            await self.enqueue_audio(buffer)      
 
     @discord.app_commands.command(
         description = 'add to counter'
