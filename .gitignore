@@ -1,6 +1,3 @@
 .env
 src/data.json
 src/__pycache__
-src/dict/*
-src/onnxruntime/*
-src/models/*
