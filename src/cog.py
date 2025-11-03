@@ -1,13 +1,15 @@
 import asyncio
+import requests
 import discord
 from discord.ext import commands
 import json
 import logging
 import math
 import datetime
-from vv import main
 import io
 from discord import FFmpegPCMAudio
+
+VOICEVOX_URL = "http://192.168.0.71:50021"
 
 logging.basicConfig(
     level = logging.INFO,
@@ -68,15 +70,13 @@ class command(commands.Cog):
                 json.dump(data, f, indent = 2)
         
         if message.channel.id in [i for i in data["activeVV"]]:
-            wav = await main(message.content, self.style)
-            buffer = io.BytesIO(wav)
-            buffer.seek(0)
-            
+            buffer = await synthesize(message.content, self.style)
+
             audio_source = FFmpegPCMAudio(buffer, pipe=True)
             self.vc.play(audio_source)
 
             while self.vc.is_playing():
-                await asyncio.sleep(0.5)            
+                await asyncio.sleep(0.5)          
 
     @discord.app_commands.command(
         description = 'add to counter'
@@ -131,3 +131,23 @@ class command(commands.Cog):
 
 async def setup(bot:commands.Bot):
     await bot.add_cog(command(bot))
+
+async def synthesize(text:str, speaker:int):
+    query = requests.post(
+        f"{VOICEVOX_URL}/audio_query",
+        params={"text": text, "speaker": speaker},
+    )
+    query.raise_for_status()
+
+    audio = requests.post(
+        f"{VOICEVOX_URL}/synthesis",
+        headers={"Content-Type": "application/json"},
+        params={"speaker": speaker},
+        data=query.text,
+    )
+    audio.raise_for_status()
+
+    wav_bytes = audio.content
+    buffer = io.BytesIO(wav_bytes)
+    buffer.seek(0)
+    return buffer
