@@ -23,9 +23,42 @@ logging.basicConfig(
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
 
+class ModelSelect(discord.ui.Select):
+    def __init__(self, cog):
+        self.cog = cog
+        options = [
+            discord.SelectOption(label = "四国めたん", value = "2"),
+            discord.SelectOption(label = "ずんだもん", value = "3"),
+            discord.SelectOption(label = "春日部つむぎ", value = "8"),
+        ]
+        super().__init__(
+            placeholder = "モデルを選択してください",
+            min_values = 1,
+            max_values = 1,
+            options = options,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_value = self.values[0]
+        selected_label = next(
+            (option.label for option in self.options if option.value == selected_value),
+            None
+        )
+        self.cog.style = int(selected_value)
+        await interaction.response.send_message(
+            content = f"`{selected_label}` に変更しました", ephemeral=True
+        )
+
+class ModelSelectView(discord.ui.View):
+    def __init__(self, cog):
+        super().__init__()
+        self.add_item(ModelSelect(cog))
+
+
 class command(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
+        self.style = 0
         self.audio_queue = deque()
         self.audio_playing = False
         self.queue_lock = asyncio.Lock()
@@ -153,10 +186,11 @@ class command(commands.Cog):
     @discord.app_commands.command(
         description = "change model"
     )
-    async def change_model(self, interaction:discord.Interaction, style_id:int = 0):
-        self.style = style_id
-        
-        await interaction.response.send_message(content="変更しました")
+    async def change_model(self, interaction:discord.Interaction):
+        await interaction.response.send_message(
+            "",
+            view=ModelSelectView(self)
+        )
 
 async def setup(bot:commands.Bot):
     await bot.add_cog(command(bot))
