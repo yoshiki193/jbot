@@ -149,6 +149,14 @@ class command(commands.Cog):
             json.dump(data, f, indent = 2)
         
         await interaction.response.send_message(content="切断しました")
+    
+    @discord.app_commands.command(
+        description = "change model"
+    )
+    async def change_model(self, interaction:discord.Interaction, style_id:int = 0):
+        self.style = style_id
+        
+        await interaction.response.send_message(content="変更しました")
 
 async def setup(bot:commands.Bot):
     await bot.add_cog(command(bot))
