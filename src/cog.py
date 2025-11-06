@@ -30,6 +30,7 @@ class ModelSelect(discord.ui.Select):
             discord.SelectOption(label = "四国めたん", value = "2"),
             discord.SelectOption(label = "ずんだもん", value = "3"),
             discord.SelectOption(label = "春日部つむぎ", value = "8"),
+            discord.SelectOption(label = "なみだめずんだもん", value = "76")
         ]
         super().__init__(
             placeholder = "モデルを選択してください",
