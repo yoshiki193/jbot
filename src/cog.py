@@ -52,7 +52,7 @@ class ModelSelect(discord.ui.Select):
 
 class ModelSelectView(discord.ui.View):
     def __init__(self, cog):
-        super().__init__()
+        super().__init__(timeout = None)
         self.add_item(ModelSelect(cog))
 
 
