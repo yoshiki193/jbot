@@ -7,7 +7,6 @@ import logging
 import math
 import datetime
 import io
-from collections import deque
 from discord import FFmpegPCMAudio
 
 VOICEVOX_URL = "http://192.168.0.71:50021"
@@ -30,7 +29,8 @@ class ModelSelect(discord.ui.Select):
             discord.SelectOption(label = "四国めたん", value = "2"),
             discord.SelectOption(label = "ずんだもん", value = "3"),
             discord.SelectOption(label = "春日部つむぎ", value = "8"),
-            discord.SelectOption(label = "なみだめずんだもん", value = "76")
+            discord.SelectOption(label = "なみだめずんだもん", value = "76"),
+            discord.SelectOption(label = "中国うさぎ", value = "61")
         ]
         super().__init__(
             placeholder = "モデルを選択してください",
@@ -55,36 +55,43 @@ class ModelSelectView(discord.ui.View):
         super().__init__(timeout = None)
         self.add_item(ModelSelect(cog))
 
-
 class command(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
         self.style = 0
-        self.audio_queue = deque()
-        self.audio_playing = False
-        self.queue_lock = asyncio.Lock()
+        self.audio_queue = asyncio.Queue()
+        self.is_playing = False
+        self.play_task = None
     
     async def enqueue_audio(self, buffer):
-        async with self.queue_lock:
-            self.audio_queue.append(buffer)
-            if not self.audio_playing:
-                asyncio.create_task(self._play_next())
+        await self.audio_queue.put(buffer)
+        if not self.is_playing:
+            self.play_task = asyncio.create_task(self._player_loop())
 
-    async def _play_next(self):
-        async with self.queue_lock:
-            if not self.audio_queue:
-                self.audio_playing = False
-                return
-            self.audio_playing = True
-            buffer = self.audio_queue.popleft()
+    async def _player_loop(self):
+        self.is_playing = True
+        try:
+            while not self.audio_queue.empty():
+                buffer = await self.audio_queue.get()
+                buffer.seek(0)
+                audio_source = FFmpegPCMAudio(buffer, pipe=True)
 
-        audio_source = FFmpegPCMAudio(buffer, pipe=True)
-        self.vc.play(audio_source)
+                play_finished = asyncio.Event()
 
-        while self.vc.is_playing():
-            await asyncio.sleep(0.5)
+                def after_play(error):
+                    play_finished.set()
 
-        await self._play_next()
+                self.vc.play(audio_source, after=after_play)
+
+                await play_finished.wait()
+
+                await asyncio.sleep(0.2)
+
+        except Exception as e:
+            print(f"Playback error: {e}")
+
+        finally:
+            self.is_playing = False
 
     async def generate_embed(self):
         with open('data.json') as f:
