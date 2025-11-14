@@ -7,6 +7,7 @@ import logging
 import math
 import datetime
 import io
+from collections import deque
 from discord import FFmpegPCMAudio
 
 VOICEVOX_URL = "http://192.168.0.71:50021"
@@ -59,39 +60,31 @@ class command(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
         self.style = 0
-        self.audio_queue = asyncio.Queue()
-        self.is_playing = False
-        self.play_task = None
+        self.audio_queue = deque()
+        self.audio_playing = False
+        self.queue_lock = asyncio.Lock()
     
     async def enqueue_audio(self, buffer):
-        await self.audio_queue.put(buffer)
-        if not self.is_playing:
-            self.play_task = asyncio.create_task(self._player_loop())
+        async with self.queue_lock:
+            self.audio_queue.append(buffer)
+            if not self.audio_playing:
+                asyncio.create_task(self._play_next())
 
-    async def _player_loop(self):
-        self.is_playing = True
-        try:
-            while not self.audio_queue.empty():
-                buffer = await self.audio_queue.get()
-                buffer.seek(0)
-                audio_source = FFmpegPCMAudio(buffer, pipe=True)
+    async def _play_next(self):
+        async with self.queue_lock:
+            if not self.audio_queue:
+                self.audio_playing = False
+                return
+            self.audio_playing = True
+            buffer = self.audio_queue.popleft()
 
-                play_finished = asyncio.Event()
+        audio_source = FFmpegPCMAudio(buffer, pipe=True)
+        self.vc.play(audio_source)
 
-                def after_play(error):
-                    play_finished.set()
+        while self.vc.is_playing():
+            await asyncio.sleep(0.5)
 
-                self.vc.play(audio_source, after=after_play)
-
-                await play_finished.wait()
-
-                await asyncio.sleep(0.2)
-
-        except Exception as e:
-            print(f"Playback error: {e}")
-
-        finally:
-            self.is_playing = False
+        await self._play_next()
 
     async def generate_embed(self):
         with open('data.json') as f:
@@ -153,7 +146,7 @@ class command(commands.Cog):
 
         with open('data.json', 'w') as f:
             json.dump(data, f, indent = 2)
-        
+
         await interaction.response.send_message(content=f'updated\t{member.display_name}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     
     @discord.app_commands.command(
