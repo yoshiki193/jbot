@@ -9,7 +9,9 @@ import datetime
 import io
 from collections import deque
 from discord import FFmpegPCMAudio
+import re
 
+CUSTOM_EMOJI_PATTERN = r"<a?:\w+:\d+>"
 VOICEVOX_URL = "http://192.168.0.71:50021"
 
 logging.basicConfig(
@@ -129,7 +131,7 @@ class command(commands.Cog):
             with open('data.json', 'w') as f:
                 json.dump(data, f, indent = 2)
         
-        if message.channel.id in [i for i in data["activeVV"]]:
+        if message.channel.id in [i for i in data["activeVV"]] and re.search(CUSTOM_EMOJI_PATTERN, message.content) is None:
             buffer = await synthesize(message.content, self.style)
             await self.enqueue_audio(buffer)      
 
