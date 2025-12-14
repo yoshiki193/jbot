@@ -131,7 +131,7 @@ class command(commands.Cog):
             with open('data.json', 'w') as f:
                 json.dump(data, f, indent = 2)
         
-        if message.channel.id in [i for i in data["activeVV"]] and re.search(CUSTOM_EMOJI_PATTERN, message.content) is None:
+        if message.channel.id in [i for i in data["activeVV"]] and re.search(CUSTOM_EMOJI_PATTERN, message.content) is None and "http" not in message.content:
             buffer = await synthesize(message.content, self.style)
             await self.enqueue_audio(buffer)      
 
