@@ -12,6 +12,7 @@ from discord import FFmpegPCMAudio
 import re
 
 CUSTOM_EMOJI_PATTERN = r"<a?:\w+:\d+>"
+URL_PATTERN = r"https?://"
 VOICEVOX_URL = "http://192.168.0.71:50021"
 
 logging.basicConfig(
@@ -60,8 +61,11 @@ class ModelSelectView(discord.ui.View):
 
 class command(commands.Cog):
     def __init__(self, bot:commands.Bot):
+        with open('data.json') as f:
+            data:dict = json.load(f)
         self.bot = bot
         self.style = 0
+        self.data = data
         self.audio_queue = deque()
         self.audio_playing = False
         self.queue_lock = asyncio.Lock()
@@ -89,10 +93,7 @@ class command(commands.Cog):
         await self._play_next()
 
     async def generate_embed(self):
-        with open('data.json') as f:
-            data:dict = json.load(f)
-
-        data_list = data['list']
+        data_list = self.data['list']
         payload = []
 
         for i in data_list:
@@ -115,23 +116,21 @@ class command(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message:discord.Message):
-        with open('data.json') as f:
-            data:dict = json.load(f)
-        if (message.author !=  self.bot.user or 'updated' in message.content) and message.channel.id == data['sendChannelId']:
-            if data['lastMessageId'] == 0:
+        if (message.author !=  self.bot.user or 'updated' in message.content) and message.channel.id == self.data['sendChannelId']:
+            if self.data['lastMessageId'] == 0:
                 send_message = await message.channel.send(embed = discord.Embed.from_dict(await self.generate_embed()))
-                data['lastMessageId'] = send_message.id
+                self.data['lastMessageId'] = send_message.id
             else:
-                send_channel:discord.TextChannel = await self.bot.fetch_channel(data['sendChannelId'])
-                last_message:discord.Message = await send_channel.fetch_message(data['lastMessageId'])
+                send_channel:discord.TextChannel = await self.bot.fetch_channel(self.data['sendChannelId'])
+                last_message:discord.Message = await send_channel.fetch_message(self.data['lastMessageId'])
                 await last_message.delete()
                 send_message = await message.channel.send(embed = discord.Embed.from_dict(await self.generate_embed()),silent=True)
-                data['lastMessageId'] = send_message.id
+                self.data['lastMessageId'] = send_message.id
 
             with open('data.json', 'w') as f:
-                json.dump(data, f, indent = 2)
+                json.dump(self.data, f, indent = 2)
         
-        if message.channel.id in [i for i in data["activeVV"]] and re.search(CUSTOM_EMOJI_PATTERN, message.content) is None and "http" not in message.content:
+        if message.channel.id in [i for i in self.data["activeVV"]] and re.search(CUSTOM_EMOJI_PATTERN, message.content) is None and re.search(URL_PATTERN, message.content) is None:
             buffer = await synthesize(message.content, self.style)
             await self.enqueue_audio(buffer)      
 
@@ -139,15 +138,10 @@ class command(commands.Cog):
         description = 'add to counter'
     )
     async def add(self,interaction:discord.Interaction,member:discord.Member):
-        with open('data.json') as f:
-            data:dict = json.load(f)
-            data_list = data['list']
-
-        data_list[str(member.id)] = data_list[str(member.id)] + 1 if str(member.id) in data_list else 1
-        data['list'] = data_list
+        self.data['list'][str(member.id)] = self.data['list'][str(member.id)] + 1 if str(member.id) in self.data['list'] else 1
 
         with open('data.json', 'w') as f:
-            json.dump(data, f, indent = 2)
+            json.dump(self.data, f, indent = 2)
 
         await interaction.response.send_message(content=f'updated\t{member.display_name}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     
@@ -158,13 +152,10 @@ class command(commands.Cog):
         self.vc = await interaction.channel.connect()
         self.style = style_id
 
-        with open("data.json") as f:
-            data:dict = json.load(f)
-
-        data["activeVV"].append(interaction.channel_id)
+        self.data["activeVV"].append(interaction.channel_id)
 
         with open("data.json", "w") as f:
-            json.dump(data, f, indent = 2)
+            json.dump(self.data, f, indent = 2)
 
         await interaction.response.send_message(content="接続しました")
     
@@ -174,15 +165,12 @@ class command(commands.Cog):
     async def disconnect_vv(self, interaction:discord.Interaction):
         await self.vc.disconnect()
 
-        with open("data.json") as f:
-            data:dict = json.load(f)
-
-        for i, j in enumerate(data["activeVV"]):
+        for i, j in enumerate(self.data["activeVV"]):
             if j == interaction.channel_id:
-                data["activeVV"].pop(i)
+                self.data["activeVV"].pop(i)
 
         with open("data.json", "w") as f:
-            json.dump(data, f, indent = 2)
+            json.dump(self.data, f, indent = 2)
         
         await interaction.response.send_message(content="切断しました")
     
