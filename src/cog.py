@@ -74,23 +74,34 @@ class command(commands.Cog):
         async with self.queue_lock:
             self.audio_queue.append(buffer)
             if not self.audio_playing:
-                asyncio.create_task(self._play_next())
+                self.audio_playing = True
+                asyncio.create_task(self._play_loop())
 
-    async def _play_next(self):
-        async with self.queue_lock:
-            if not self.audio_queue:
-                self.audio_playing = False
+    async def _play_loop(self):
+        while True:
+            async with self.queue_lock:
+                if not self.audio_queue:
+                    self.audio_playing = False
+                    return
+                buffer = self.audio_queue.popleft()
+
+            if not self.vc or not self.vc.is_connected():
+                async with self.queue_lock:
+                    self.audio_queue.clear()
+                    self.audio_playing = False
                 return
-            self.audio_playing = True
-            buffer = self.audio_queue.popleft()
 
-        audio_source = FFmpegPCMAudio(buffer, pipe=True)
-        self.vc.play(audio_source)
+            audio_source = FFmpegPCMAudio(buffer, pipe=True)
 
-        while self.vc.is_playing():
-            await asyncio.sleep(0.5)
+            done = asyncio.Event()
 
-        await self._play_next()
+            def after_playing(error):
+                if error:
+                    print(f"Playback error: {error}")
+                done.set()
+
+            self.vc.play(audio_source, after=after_playing)
+            await done.wait()
 
     async def generate_embed(self):
         data_list = self.data['list']
