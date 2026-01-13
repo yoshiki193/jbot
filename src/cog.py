@@ -163,7 +163,7 @@ class command(commands.Cog):
         self.vc = await interaction.channel.connect()
         self.style = style_id
 
-        if interaction.channel_id not in self.data["activeVV"]
+        if interaction.channel_id not in self.data["activeVV"]:
             self.data["activeVV"].append(interaction.channel_id)
 
             with open("data.json", "w") as f:
