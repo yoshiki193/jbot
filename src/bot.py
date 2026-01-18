@@ -4,7 +4,7 @@ from discord.ext import commands
 import os
 
 INITIAL_EXTENSIONS = [
-    "cog",
+    "cogs.command_cog",
 ]
 
 token=os.environ["token"]
