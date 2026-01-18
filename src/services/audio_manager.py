@@ -1,6 +1,7 @@
 import discord
 import logging
 import datetime
+import asyncio
 from services.audio_player import AudioPlayer
 
 class AudioManager:
@@ -55,13 +56,25 @@ class AudioManager:
             self.connected_guild_count()
         )
     
-    async def update_vc(self, bot):
+    async def update_vc(self, bot, voicevox):
         now = datetime.datetime.now()
         keys = list(self.players.keys())
         
         for guild_id, channel_id in keys:
             connect_time = self.connect_time.get((guild_id, channel_id))
-            if connect_time and (now - connect_time).total_seconds() >= 10 * 3600:
+            if connect_time and (now - connect_time).total_seconds() >= 8 * 3600:
+                buffer = await voicevox.synthesize(
+                    "再接続します",
+                    0
+                )
+                await self.play(
+                    guild_id,
+                    channel_id,
+                    buffer
+                )
+
+                await asyncio.sleep(2)
+
                 channel = await bot.fetch_channel(channel_id)
 
                 await self.disconnect_vc(guild_id, channel_id)

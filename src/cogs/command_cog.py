@@ -176,7 +176,7 @@ class Command(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def reconnect_loop(self):
-        await self.audio_manager.update_vc(self.bot)
+        await self.audio_manager.update_vc(self.bot, self.voicevox)
 
     @reconnect_loop.before_loop
     async def before_reconnect_loop(self):
