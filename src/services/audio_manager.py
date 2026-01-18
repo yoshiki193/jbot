@@ -31,7 +31,7 @@ class AudioManager:
             return False 
 
         try:
-            vc = await channel.connect()
+            vc = await channel.connect(self_deaf=True)
         except Exception:
             self.logger.exception(
                 "VC connect failed: guild=%s channel=%s",
