@@ -93,7 +93,7 @@ class AudioManager:
         keys = list(self.players.keys())
         
         for guild_id, channel_id in keys:
-            if repo.get_active_vv(str(guild_id)) == channel_id:
+            if repo.get_active_auto_connect(str(guild_id)) == channel_id:
                 idol_time = self.idol_time.get((guild_id, channel_id))
                 if idol_time and (now - idol_time).total_seconds() >= 15 * 60:
                     await self.disconnect_vc(guild_id, channel_id)

@@ -8,6 +8,10 @@ class MessageFilterService:
         self.url_pattern = r"https?://"
 
     def is_playable_message(self, message: discord.Message) -> bool:
+        if message is None:
+            return False
+        if message.guild is None:
+            return False
         if message.author == self.bot_user:
             return False
         if re.search(self.custom_emoji_pattern, message.content):

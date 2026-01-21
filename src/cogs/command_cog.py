@@ -35,20 +35,13 @@ class Command(commands.Cog):
         self.voicevox = VoiceVoxService()
         self.reconnect_loop.start()
         self.self_disconnect.start()
-    
-    def can_play_message(self, message: discord.Message):
-        return (
-            message is not None and
-            message.guild is not None and
-            self.message_filter.is_playable_message(message)
-        )
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if self.counter.is_counter_update_message(message, self.bot.user):
             await self.counter_message_manager.update(message.channel)
 
-        if self.can_play_message(message):
+        if self.message_filter.is_playable_message(message):
             if self.audio_manager.is_connected_channel(message.guild.id, message.channel.id):
                 buffer = await self.voicevox.synthesize(
                     message.content,
@@ -59,7 +52,7 @@ class Command(commands.Cog):
                     message.channel.id,
                     buffer
                 )
-            elif self.repo.get_active_vv(str(message.guild.id)) == message.channel.id:
+            elif self.repo.get_active_auto_connect(str(message.guild.id)) == message.channel.id:
                 existing_vc = self.audio_manager.get_connected_vc(message.guild.id)
 
                 if existing_vc:
@@ -99,6 +92,33 @@ class Command(commands.Cog):
         self.counter.add(str(member.id), str(interaction.guild_id))
         await interaction.response.send_message(
             content=f"updated\t{member.display_name}\t{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+    
+    @discord.app_commands.command(
+        description = "set auto connect voice channel"
+    )
+    @discord.app_commands.describe(
+        channel="セットするボイスチャンネル"
+    )
+    async def set_auto_connect(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
+        self.repo.set_active_auto_connect(str(interaction.guild_id), channel.id)
+        await interaction.response.send_message(
+            f"自動接続ボイスチャンネル`{channel.name}`をセットしました",
+            ephemeral=True
+        )
+
+    @discord.app_commands.command(
+        description = "reset auto connect voice channel"
+    )
+    async def reset_auto_connect(self, interaction: discord.Interaction):
+        channel_id = self.repo.get_active_auto_connect(str(interaction.guild_id))
+        if channel_id != 0:
+            if self.audio_manager.is_connected_channel(interaction.guild_id, channel_id):
+                await self.audio_manager.disconnect_vc(interaction.guild_id, channel_id)
+        self.repo.set_active_auto_connect(str(interaction.guild_id), 0)
+        await interaction.response.send_message(
+            "自動接続ボイスチャンネルをリセットしました",
+            ephemeral=True
         )
 
     @discord.app_commands.command(

@@ -24,14 +24,19 @@ class DataRepository:
                 },
                 "voicevox": {
                     "speaker": 0,
-                    "active_vv": 0
+                    "active_auto_connect": 0
                 }
             }
         )
     
-    def get_active_vv(self, guild_id: str):
+    def get_active_auto_connect(self, guild_id: str):
         guild = self.get_guild(guild_id)
-        return guild["voicevox"]["active_vv"]
+        return guild["voicevox"]["active_auto_connect"]
+    
+    def set_active_auto_connect(self, guild_id: str, channel_id: int):
+        guild = self.get_guild(guild_id)
+        guild["voicevox"]["active_auto_connect"] = channel_id
+        self.save()
     
     def get_counter_users(self, guild_id: str):
         guild = self.get_guild(guild_id)
