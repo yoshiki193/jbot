@@ -204,7 +204,7 @@ class Command(commands.Cog):
     async def reconnect_loop(self):
         await self.audio_manager.update_vc(self.bot, self.voicevox)
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes=5)
     async def self_disconnect(self):
         await self.audio_manager.self_disconnect(self.repo)
 
