@@ -23,10 +23,15 @@ class DataRepository:
                     "users": {}
                 },
                 "voicevox": {
-                    "speaker": 0
+                    "speaker": 0,
+                    "active_vv": 0
                 }
             }
         )
+    
+    def get_active_vv(self, guild_id: str):
+        guild = self.get_guild(guild_id)
+        return guild["voicevox"]["active_vv"]
     
     def get_counter_users(self, guild_id: str):
         guild = self.get_guild(guild_id)

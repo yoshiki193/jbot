@@ -34,13 +34,13 @@ class Command(commands.Cog):
         self.counter_message_manager = CounterMessageManager(self.bot, self.counter, self.counter_embed)
         self.voicevox = VoiceVoxService()
         self.reconnect_loop.start()
+        self.self_disconnect.start()
     
     def can_play_message(self, message: discord.Message):
         return (
             message is not None and
             message.guild is not None and
-            self.message_filter.is_playable_message(message) and
-            self.audio_manager.is_connected_channel(message.guild.id, message.channel.id)
+            self.message_filter.is_playable_message(message)
         )
 
     @commands.Cog.listener()
@@ -49,15 +49,41 @@ class Command(commands.Cog):
             await self.counter_message_manager.update(message.channel)
 
         if self.can_play_message(message):
-            buffer = await self.voicevox.synthesize(
-                message.content,
-                self.repo.get_voicevox_speaker(str(message.guild.id))
-            )
-            await self.audio_manager.play(
-                message.guild.id,
-                message.channel.id,
-                buffer
-            )
+            if self.audio_manager.is_connected_channel(message.guild.id, message.channel.id):
+                buffer = await self.voicevox.synthesize(
+                    message.content,
+                    self.repo.get_voicevox_speaker(str(message.guild.id))
+                )
+                await self.audio_manager.play(
+                    message.guild.id,
+                    message.channel.id,
+                    buffer
+                )
+            elif self.repo.get_active_vv(str(message.guild.id)) == message.channel.id:
+                existing_vc = self.audio_manager.get_connected_vc(message.guild.id)
+
+                if existing_vc:
+                    if existing_vc.channel.id == message.guild.id:
+                        return
+                    else:
+                        return
+
+                success = await self.audio_manager.connect_vc(message.guild.id, message.channel)
+
+                if not success:
+                    return
+                
+                buffer = await self.voicevox.synthesize(
+                    message.content,
+                    self.repo.get_voicevox_speaker(str(message.guild.id))
+                )
+                await self.audio_manager.play(
+                    message.guild.id,
+                    message.channel.id,
+                    buffer
+                )
+                
+
 
     @discord.app_commands.command(
         description = "add to counter"
@@ -177,6 +203,10 @@ class Command(commands.Cog):
     @tasks.loop(minutes=10)
     async def reconnect_loop(self):
         await self.audio_manager.update_vc(self.bot, self.voicevox)
+
+    @tasks.loop(minutes=1)
+    async def self_disconnect(self):
+        await self.audio_manager.self_disconnect(self.repo)
 
     @reconnect_loop.before_loop
     async def before_reconnect_loop(self):

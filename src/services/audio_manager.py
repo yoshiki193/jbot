@@ -9,6 +9,7 @@ class AudioManager:
         self.logger = logger
         self.players: dict[tuple[int, int], AudioPlayer] = {}
         self.connect_time: dict[tuple[int,int], datetime.datetime] = {}
+        self.idol_time: dict[tuple[int,int], datetime.datetime] = {}
     
     def connected_guild_count(self) -> int:
         return len({guild_id for guild_id, _ in self.players.keys()})
@@ -86,6 +87,16 @@ class AudioManager:
                     self.connected_guild_count(),
                     self.connected_time_count()
                 )
+    
+    async def self_disconnect(self, repo):
+        now = datetime.datetime.now()
+        keys = list(self.players.keys())
+        
+        for guild_id, channel_id in keys:
+            if repo.get_active_vv(str(guild_id)) == channel_id:
+                idol_time = self.idol_time.get((guild_id, channel_id))
+                if idol_time and (now - idol_time).total_seconds() >= 1 * 60:
+                    await self.disconnect_vc(guild_id, channel_id)
 
 
     async def disconnect_vc(self, guild_id: int, channel_id: int):
@@ -119,6 +130,8 @@ class AudioManager:
         return True
 
     async def play(self, guild_id: int, channel_id: int, buffer):
+        key = (guild_id, channel_id)
         player = self.players.get((guild_id, channel_id))
         if player:
+            self.idol_time[key] = datetime.datetime.now()
             await player.enqueue(buffer)
