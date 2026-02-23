@@ -82,7 +82,7 @@ class Command(commands.Cog):
         description = "add to counter"
     )
     async def add(self,interaction: discord.Interaction,member: discord.Member):
-        if interaction.channel_id != self.counter.get_send_channel_id(str(interaction.guild_id)):
+        if interaction.channel_id != self.counter.get_send_channel_id(str(interaction.guild_id)) or interaction.user.id in self.repo.get_ban_users(str(interaction.guild_id)):
             await interaction.response.send_message(
                 "このチャンネルではサポートされていません",
                 ephemeral=True

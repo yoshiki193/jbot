@@ -20,7 +20,8 @@ class DataRepository:
                 "counter": {
                     "send_channel_id": 0,
                     "last_message_id": 0,
-                    "users": {}
+                    "users": {},
+                    "ban_users": []
                 },
                 "voicevox": {
                     "speaker": 0,
@@ -41,6 +42,10 @@ class DataRepository:
     def get_counter_users(self, guild_id: str):
         guild = self.get_guild(guild_id)
         return guild["counter"]["users"]
+    
+    def get_ban_users(self, guild_id: str):
+        guild = self.get_guild(guild_id)
+        return guild["counter"]["ban_users"]
     
     def increment_counter_users(self, guild_id: str, member_id: str):
         users = self.get_guild(guild_id)["counter"]["users"]
