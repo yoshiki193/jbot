@@ -10,6 +10,9 @@ class CounterService:
     def get_users(self, guild_id: str):
         return self.repo.get_counter_users(guild_id)
     
+    def get_ban_users(self, guild_id:str):
+        return self.repo.get_ban_users(guild_id)
+    
     def get_last_message_id(self, guild_id: str):
         return self.repo.get_last_message_id(guild_id)
 
