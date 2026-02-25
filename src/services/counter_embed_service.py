@@ -12,7 +12,7 @@ class CounterEmbedService:
         for i in data_list:
             user:discord.User = await bot.fetch_user(i)
             payload.append({
-                "name":f"__{user.display_name}\t{data_list[i] * 100}\t#1__" if data_list[i] == max(j for j in data_list.values()) else f"{user.display_name}\t{data_list[i]}",
+                "name":f"__{user.display_name}\t{data_list[i]}\t#1__" if data_list[i] == max(j for j in data_list.values()) else f"{user.display_name}\t{data_list[i]}",
                 "value":"█"*math.ceil((data_list[i]/max(j for j in data_list.values()))*10)
             })
 
