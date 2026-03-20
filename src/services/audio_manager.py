@@ -16,6 +16,9 @@ class AudioManager:
     
     def connected_time_count(self) -> int:
         return len([guild_id for guild_id, _ in self.connect_time.keys()])
+
+    def idol_time_count(self) -> int:
+        return len([guild_id for guild_id, _ in self.idol_time.keys()])
     
     def is_connected_channel(self, guild_id: int, channel_id: int) -> bool:
         vc = self.get_connected_vc(guild_id)
@@ -27,23 +30,6 @@ class AudioManager:
                 return player.vc
         return None
     
-    async def connect_vc(self, guild_id: int, channel: discord.VoiceChannel) -> bool:
-        if self.get_connected_vc(guild_id):
-            return False 
-
-        try:
-            vc = await channel.connect(self_deaf=True)
-        except Exception:
-            self.logger.exception(
-                "VC connect failed: guild=%s channel=%s",
-                guild_id,
-                channel.id,
-            )
-            return False
-
-        self.add_vc(guild_id, channel.id, vc)
-        return True
-
     def add_vc(self, guild_id: int, channel_id: int, vc):
         key = (guild_id, channel_id)
     
@@ -57,7 +43,61 @@ class AudioManager:
             self.connected_guild_count()
         )
     
-    async def update_vc(self, bot, voicevox):
+    async def connect_vc(self, guild_id: int, channel: discord.VoiceChannel) -> bool:
+        if self.get_connected_vc(guild_id):
+            return False
+
+        try:
+            vc = await channel.connect(self_deaf=True)
+        except Exception:
+            self.logger.exception(
+                "VC connect failed: guild=%s channel=%s",
+                guild_id,
+                channel.id,
+            )
+            return False
+
+        self.add_vc(guild_id, channel.id, vc)
+        return True
+    
+    async def disconnect_vc(self, guild_id: int, channel_id: int):
+        key = (guild_id, channel_id)
+        player = self.players.get(key)
+
+        if not player:
+            return False
+        try:
+            if player.vc and player.vc.is_connected():
+                if player.vc.is_playing():
+                    player.vc.stop()
+                
+                await player.vc.disconnect()
+            
+            self.logger.info(
+                "VC disconnected: guild=%s channel=%s | connected guilds=%d",
+                guild_id,
+                channel_id,
+                self.connected_guild_count()
+            )
+        except Exception:
+            self.logger.exception(
+                "VC disconnect failed: guild=%s channel=%s",
+                guild_id,
+                channel_id,
+            )
+        finally:
+            self.players.pop(key, None)
+            self.connect_time.pop(key, None)
+            self.logger.info(
+                    "connected guilds=%d time count=%d idol time count=%d",
+                    self.connected_guild_count(),
+                    self.connected_time_count(),
+                    self.idol_time_count()
+                )
+
+        return True
+    
+    async def update_vc(self, bot, voicevox, voicevox_url):
         now = datetime.datetime.now()
         keys = list(self.players.keys())
         
@@ -66,7 +106,8 @@ class AudioManager:
             if connect_time and (now - connect_time).total_seconds() >= 8 * 3600:
                 buffer = await voicevox.synthesize(
                     "再接続します",
-                    0
+                    0,
+                    voicevox_url
                 )
                 await self.play(
                     guild_id,
@@ -97,37 +138,6 @@ class AudioManager:
                 idol_time = self.idol_time.get((guild_id, channel_id))
                 if idol_time and (now - idol_time).total_seconds() >= 10 * 60:
                     await self.disconnect_vc(guild_id, channel_id)
-
-
-    async def disconnect_vc(self, guild_id: int, channel_id: int):
-        key = (guild_id, channel_id)
-        player = self.players.get(key)
-
-        if not player:
-            return False
-        try:
-            if player.vc and player.vc.is_connected():
-                if player.vc.is_playing():
-                    player.vc.stop()
-                
-                await player.vc.disconnect()
-            
-            self.logger.info(
-                "VC disconnected: guild=%s channel=%s | connected guilds=%d",
-                guild_id,
-                channel_id,
-                self.connected_guild_count()
-            )
-        except Exception:
-            self.logger.exception(
-                "VC disconnect failed: guild=%s channel=%s",
-                guild_id,
-                channel_id,
-            )
-        finally:
-            self.players.pop(key, None)
-            self.connect_time.pop(key, None)
-        return True
 
     async def play(self, guild_id: int, channel_id: int, buffer):
         key = (guild_id, channel_id)

@@ -24,11 +24,14 @@ class DataRepository:
                     "ban_users": []
                 },
                 "voicevox": {
-                    "speaker": 0,
+                    "speaker": {},
                     "active_auto_connect": 0
                 }
             }
         )
+
+    def get_voicevox_url(self):
+        return self.data["voicevox_url"]
     
     def get_active_auto_connect(self, guild_id: str):
         guild = self.get_guild(guild_id)
@@ -65,11 +68,11 @@ class DataRepository:
         guild["counter"]["last_message_id"] = last_message_id
         self.save()
 
-    def get_voicevox_speaker(self, guild_id: str):
+    def get_voicevox_speaker(self, guild_id: str, member_id: str):
         guild = self.get_guild(guild_id)
-        return guild["voicevox"]["speaker"]
+        return guild["voicevox"]["speaker"].get(member_id)
     
-    def set_voicevox_speaker(self, guild_id: str, speaker: int):
+    def set_voicevox_speaker(self, guild_id: str, speaker: int, member_id: str):
         guild = self.get_guild(guild_id)
-        guild["voicevox"]["speaker"] = speaker
+        guild["voicevox"]["speaker"][member_id] = speaker
         self.save()

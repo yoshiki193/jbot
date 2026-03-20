@@ -9,7 +9,7 @@ from services.audio_manager import AudioManager
 from services.counter_service import CounterService
 from services.voicevox_service import VoiceVoxService
 from services.message_filter_service import  MessageFilterService
-from ui.model_select import ModelSelectView
+import autocomplete.select_voicevox_model
 
 logging.basicConfig(
     level = logging.INFO,
@@ -33,6 +33,7 @@ class Command(commands.Cog):
         self.counter_embed = CounterEmbedService(self.counter)
         self.counter_message_manager = CounterMessageManager(self.bot, self.counter, self.counter_embed)
         self.voicevox = VoiceVoxService()
+        self.voicevox_url = self.repo.get_voicevox_url()
         self.reconnect_loop.start()
         self.self_disconnect.start()
 
@@ -44,8 +45,9 @@ class Command(commands.Cog):
         if self.message_filter.is_playable_message(message):
             if self.audio_manager.is_connected_channel(message.guild.id, message.channel.id):
                 buffer = await self.voicevox.synthesize(
-                    message.content,
-                    self.repo.get_voicevox_speaker(str(message.guild.id))
+                    message.clean_content,
+                    self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
+                    self.voicevox_url
                 )
                 await self.audio_manager.play(
                     message.guild.id,
@@ -53,30 +55,21 @@ class Command(commands.Cog):
                     buffer
                 )
             elif self.repo.get_active_auto_connect(str(message.guild.id)) == message.channel.id:
-                existing_vc = self.audio_manager.get_connected_vc(message.guild.id)
-
-                if existing_vc:
-                    if existing_vc.channel.id == message.guild.id:
-                        return
-                    else:
-                        return
-
                 success = await self.audio_manager.connect_vc(message.guild.id, message.channel)
 
                 if not success:
                     return
                 
                 buffer = await self.voicevox.synthesize(
-                    message.content,
-                    self.repo.get_voicevox_speaker(str(message.guild.id))
+                    message.clean_content,
+                    self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
+                    self.voicevox_url
                 )
                 await self.audio_manager.play(
                     message.guild.id,
                     message.channel.id,
                     buffer
                 )
-                
-
 
     @discord.app_commands.command(
         description = "add to counter"
@@ -207,26 +200,25 @@ class Command(commands.Cog):
     @discord.app_commands.command(
         description = "change model"
     )
-    async def change_model(self, interaction: discord.Interaction):
-        if not self.audio_manager.is_connected_channel(interaction.guild_id, interaction.channel_id):
-            await interaction.response.send_message(
-                "このチャンネルではサポートされていません",
-                ephemeral=True
-            )
-            return
+    @discord.app_commands.autocomplete(
+        vv = autocomplete.select_voicevox_model.select_model,
+        style = autocomplete.select_voicevox_model.select_style
+    )
+    async def change_model(self, interaction: discord.Interaction, vv: str, style: str):
+        self.repo.set_voicevox_speaker(str(interaction.guild_id), autocomplete.select_voicevox_model.convert_speaker_id(vv, style, self.voicevox_url), str(interaction.user.id))
         
         await interaction.response.send_message(
-            "",
-            view=ModelSelectView(self.repo)
+            f"あなたのモデルを{vv}の{style}に変更しました",
+            ephemeral=True
         )
+
+    @tasks.loop(minutes=1)
+    async def self_disconnect(self):
+        await self.audio_manager.self_disconnect(self.repo)
 
     @tasks.loop(minutes=10)
     async def reconnect_loop(self):
-        await self.audio_manager.update_vc(self.bot, self.voicevox)
-
-    @tasks.loop(minutes=5)
-    async def self_disconnect(self):
-        await self.audio_manager.self_disconnect(self.repo)
+        await self.audio_manager.update_vc(self.bot, self.voicevox, self.voicevox_url)
 
     @reconnect_loop.before_loop
     async def before_reconnect_loop(self):

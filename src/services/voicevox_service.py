@@ -1,20 +1,18 @@
 import aiohttp
 import io
 
-VOICEVOX_URL = "http://192.168.0.71:50021"
-
 class VoiceVoxService:
-    async def synthesize(self, text: str, speaker: int):
+    async def synthesize(self, text: str, speaker: int, voicevox_url: str):
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{VOICEVOX_URL}/audio_query",
+                f"{voicevox_url}/audio_query",
                 params = {"text": text, "speaker": speaker}
             ) as resp:
                 resp.raise_for_status()
                 query_json = await resp.json()
 
             async with session.post(
-                f"{VOICEVOX_URL}/synthesis",
+                f"{voicevox_url}/synthesis",
                 params = {"speaker": speaker},
                 json = query_json
             ) as resp:
