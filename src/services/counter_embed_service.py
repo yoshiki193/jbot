@@ -19,8 +19,13 @@ class CounterEmbedService:
             })
         
         payload.append({
+            "name":" ",
+            "value":"──────────"
+        })
+        
+        payload.append({
             "name":"合計金額",
-            "value":f"￥{sum * 100}"
+            "value":f"```￥{sum * 100}```"
         })
 
         embed = {
