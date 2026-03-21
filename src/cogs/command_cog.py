@@ -43,33 +43,25 @@ class Command(commands.Cog):
             await self.counter_message_manager.update(message.channel)
 
         if self.message_filter.is_playable_message(message):
-            if self.audio_manager.is_connected_channel(message.guild.id, message.channel.id):
-                buffer = await self.voicevox.synthesize(
-                    message.clean_content,
-                    self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
-                    self.voicevox_url
-                )
-                await self.audio_manager.play(
-                    message.guild.id,
-                    message.channel.id,
-                    buffer
-                )
-            elif self.repo.get_active_auto_connect(str(message.guild.id)) == message.channel.id:
+            if not self.audio_manager.is_connected_channel(message.guild.id, message.channel.id):
+                if self.repo.get_active_auto_connect(str(message.guild.id)) != message.channel.id:
+                    return
                 success = await self.audio_manager.connect_vc(message.guild.id, message.channel)
 
                 if not success:
                     return
                 
-                buffer = await self.voicevox.synthesize(
-                    message.clean_content,
-                    self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
-                    self.voicevox_url
-                )
-                await self.audio_manager.play(
-                    message.guild.id,
-                    message.channel.id,
-                    buffer
-                )
+            buffer = await self.voicevox.synthesize(
+                message.clean_content,
+                self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
+                self.voicevox_url
+            )
+            
+            await self.audio_manager.play(
+                message.guild.id,
+                message.channel.id,
+                buffer
+            )
 
     @discord.app_commands.command(
         description = "add to counter"
