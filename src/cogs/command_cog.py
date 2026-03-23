@@ -50,17 +50,14 @@ class Command(commands.Cog):
 
                 if not success:
                     return
-                
-            buffer = await self.voicevox.synthesize(
-                message.clean_content,
-                self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
-                self.voicevox_url
-            )
-            
+
             await self.audio_manager.play(
                 message.guild.id,
                 message.channel.id,
-                buffer
+                message.clean_content,
+                self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
+                self.voicevox,
+                self.voicevox_url
             )
 
     @discord.app_commands.command(

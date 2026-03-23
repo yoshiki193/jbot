@@ -10,7 +10,12 @@ class AudioPlayer:
         self.lock = asyncio.Lock()
         self.playing = False
 
-    async def enqueue(self, buffer):
+    async def enqueue(self, content, speaker, voicevox, voicevox_url):
+        buffer = await voicevox.synthesize(
+            content,
+            speaker,
+            voicevox_url
+        )
         async with self.lock:
             self.queue.append(buffer)
             if not self.playing:

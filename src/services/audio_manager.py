@@ -140,9 +140,9 @@ class AudioManager:
                 if idol_time and (now - idol_time).total_seconds() >= 20 * 60:
                     await self.disconnect_vc(guild_id, channel_id)
 
-    async def play(self, guild_id: int, channel_id: int, buffer):
+    async def play(self, guild_id: int, channel_id: int, content, speaker, voicevox, voicevox_url):
         key = (guild_id, channel_id)
         player = self.players.get((guild_id, channel_id))
         if player:
             self.idol_time[key] = datetime.datetime.now()
-            await player.enqueue(buffer)
+            await player.enqueue(content, speaker, voicevox, voicevox_url)
