@@ -29,6 +29,7 @@ class AudioManager:
             if gid == guild_id:
                 return player.vc
         return None
+    
     def clear_player(self, guild_id: int, channel_id: int):
         key = (guild_id, channel_id)
         player = self.players.get(key)
