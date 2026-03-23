@@ -14,6 +14,8 @@ class MessageFilterService:
             return False
         if message.author == self.bot_user:
             return False
+        if message.clean_content == "":
+            return False
         if re.search(self.custom_emoji_pattern, message.content):
             return False
         if re.search(self.url_pattern, message.content):

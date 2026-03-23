@@ -88,6 +88,7 @@ class AudioManager:
         finally:
             self.players.pop(key, None)
             self.connect_time.pop(key, None)
+            self.idol_time.pop(key, None)
             self.logger.info(
                     "connected guilds=%d time count=%d idol time count=%d",
                     self.connected_guild_count(),

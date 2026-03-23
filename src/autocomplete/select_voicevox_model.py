@@ -40,7 +40,6 @@ def convert_speaker_id(vv: str, style: str, voicevox_url):
             if speaker["name"] == vv:
                 for styles in speaker["styles"]:
                     if styles["name"] == style:
-                        print(styles["id"])
                         return styles["id"]
         
         return 0

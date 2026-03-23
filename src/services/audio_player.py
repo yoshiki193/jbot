@@ -15,24 +15,24 @@ class AudioPlayer:
             self.queue.append(buffer)
             if not self.playing:
                 self.playing = True
-                asyncio.create_task(self._play_loop())
+                asyncio.create_task(self._play_next())
 
-    async def _play_loop(self):
-        while True:
-            if not self.vc or not self.vc.is_connected():
-                async with self.lock:
-                    self.queue.clear()
-                    self.playing = False
+    async def _play_next(self):
+        async with self.lock:
+            if not self.queue or not self.vc or not self.vc.is_connected():
+                self.playing = False
+                self.queue.clear()
                 return
-            
-            async with self.lock:
-                if not self.queue:
-                    self.playing = False
-                    return
-                buffer = self.queue.popleft()
 
-            source = FFmpegPCMAudio(buffer, pipe=True)
-            done = asyncio.Event()
+            buffer = self.queue.popleft()
 
-            self.vc.play(source, after=lambda _: done.set())
-            await done.wait()
+        source = FFmpegPCMAudio(
+            buffer,
+            pipe=True,
+            before_options="-fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0"
+        )
+
+        def after(_):
+            asyncio.run_coroutine_threadsafe(self._play_next(), self.vc.loop)
+
+        self.vc.play(source, after=after)
