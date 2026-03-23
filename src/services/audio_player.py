@@ -38,6 +38,7 @@ class AudioPlayer:
         )
 
         def after(_):
+            source.cleanup()
             asyncio.run_coroutine_threadsafe(self._play_next(), self.vc.loop)
 
         self.vc.play(source, after=after)

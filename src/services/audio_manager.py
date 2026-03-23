@@ -29,6 +29,13 @@ class AudioManager:
             if gid == guild_id:
                 return player.vc
         return None
+    def clear_player(self, guild_id: int, channel_id: int):
+        key = (guild_id, channel_id)
+        player = self.players.get(key)
+        if player:
+            player.queue.clear()
+            if player.vc.is_playing():
+                player.vc.stop()
     
     def add_vc(self, guild_id: int, channel_id: int, vc):
         key = (guild_id, channel_id)
@@ -105,15 +112,13 @@ class AudioManager:
         for guild_id, channel_id in keys:
             connect_time = self.connect_time.get((guild_id, channel_id))
             if connect_time and (now - connect_time).total_seconds() >= 8 * 3600:
-                buffer = await voicevox.synthesize(
-                    "再接続します",
-                    0,
-                    voicevox_url
-                )
                 await self.play(
                     guild_id,
                     channel_id,
-                    buffer
+                    "再接続します",
+                    0,
+                    voicevox,
+                    voicevox_url
                 )
 
                 await asyncio.sleep(2)
@@ -142,7 +147,7 @@ class AudioManager:
 
     async def play(self, guild_id: int, channel_id: int, content, speaker, voicevox, voicevox_url):
         key = (guild_id, channel_id)
-        player = self.players.get((guild_id, channel_id))
+        player = self.players.get(key)
         if player:
             self.idol_time[key] = datetime.datetime.now()
             await player.enqueue(content, speaker, voicevox, voicevox_url)

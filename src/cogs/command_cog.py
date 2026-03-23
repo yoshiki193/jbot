@@ -194,6 +194,7 @@ class Command(commands.Cog):
         style = autocomplete.select_voicevox_model.select_style
     )
     async def change_model(self, interaction: discord.Interaction, vv: str, style: str):
+        self.audio_manager.clear_player(interaction.guild_id, interaction.channel_id)
         self.repo.set_voicevox_speaker(str(interaction.guild_id), autocomplete.select_voicevox_model.convert_speaker_id(vv, style, self.voicevox_url), str(interaction.user.id))
         
         await interaction.response.send_message(
