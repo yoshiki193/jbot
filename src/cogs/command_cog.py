@@ -201,6 +201,32 @@ class Command(commands.Cog):
             f"あなたのモデルを{vv}の{style}に変更しました",
             ephemeral=True
         )
+    
+    @discord.app_commands.command(
+        description = "subscribe user dict"
+    )
+    async def subscribe_user_dict(self, interaction: discord.Interaction, surface: str, pronunciation: str):
+        res = self.voicevox.subscribe_user_dict(surface, pronunciation, self.voicevox_url)
+        if res:
+            embed = {
+                "title":"ユーザー辞書登録",
+                "description":"以下の単語が登録されました",
+                "fields":[{
+                    "name":"surface",
+                    "value":f"{surface}"
+                },{
+                    "name":"pronunciation",
+                    "value":f"{pronunciation}"
+                }]
+            }
+            await interaction.response.send_message(
+                embed=discord.Embed.from_dict(embed)
+            )
+        else:
+            await interaction.response.send_message(
+                "登録に失敗しました",
+                ephemeral=True
+            )
 
     @tasks.loop(minutes=1)
     async def self_disconnect(self):

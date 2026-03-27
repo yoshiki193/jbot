@@ -1,7 +1,6 @@
 import discord
 import requests
 
-
 async def select_model(
         interaction: discord.Interaction,
         current: str,
@@ -43,4 +42,3 @@ def convert_speaker_id(vv: str, style: str, voicevox_url):
                         return styles["id"]
         
         return 0
-

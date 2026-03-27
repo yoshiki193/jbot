@@ -1,6 +1,7 @@
 import aiohttp
 import io
 import asyncio
+import requests
 
 class VoiceVoxService:
     def __init__(self, max_concurrent=2):
@@ -27,3 +28,30 @@ class VoiceVoxService:
         buffer = io.BytesIO(wav_bytes)
         buffer.seek(0)
         return buffer
+
+    def subscribe_user_dict(self, surface: str, pronunciation: str, voicevox_url: str):
+        res = requests.post(
+            f"{voicevox_url}/audio_query",
+            params={"text": surface, "speaker": 0}
+        )
+
+        if res.status_code != 200:
+            return False
+
+        query = res.json()
+
+        accent_type = query["accent_phrases"][0]["accent"]
+
+        payload = {
+            "surface": surface,
+            "pronunciation": pronunciation,
+            "accent_type": accent_type
+        }
+
+        res2 = requests.post(f"{voicevox_url}/user_dict_word", params=payload)
+
+        if res2.status_code == 200:
+            return True
+        else:
+            print(res2.text)
+            return False
