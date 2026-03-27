@@ -143,7 +143,7 @@ class AudioManager:
         for guild_id, channel_id in keys:
             if repo.get_active_auto_connect(str(guild_id)) == channel_id:
                 idol_time = self.idol_time.get((guild_id, channel_id))
-                if idol_time and (now - idol_time).total_seconds() >= 20 * 60:
+                if idol_time and (now - idol_time).total_seconds() >= 10 * 60:
                     await self.disconnect_vc(guild_id, channel_id)
 
     async def play(self, guild_id: int, channel_id: int, content, speaker, voicevox, voicevox_url):
