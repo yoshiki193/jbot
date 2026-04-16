@@ -8,9 +8,9 @@ class MessageFilterService:
         self.url_pattern = r"https?://"
 
     def is_playable_message(self, message: discord.Message) -> bool:
-        if message is None:
+        if not isinstance(message.channel, discord.VoiceChannel):
             return False
-        if message.guild is None:
+        if message is None:
             return False
         if message.author == self.bot_user:
             return False

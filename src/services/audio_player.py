@@ -2,6 +2,7 @@ import discord
 import asyncio
 from collections import deque
 from discord import FFmpegPCMAudio
+from services.voicevox_service import VoiceVoxService
 
 class AudioPlayer:
     def __init__(self, vc: discord.VoiceClient):
@@ -10,7 +11,7 @@ class AudioPlayer:
         self.lock = asyncio.Lock()
         self.playing = False
 
-    async def enqueue(self, content, speaker, voicevox, voicevox_url):
+    async def enqueue(self, content: str, speaker: int, voicevox: VoiceVoxService, voicevox_url: str):
         buffer = await voicevox.synthesize(
             content,
             speaker,

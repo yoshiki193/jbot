@@ -1,8 +1,11 @@
 import discord
+from discord.ext import commands
 import logging
 import datetime
 import asyncio
 from services.audio_player import AudioPlayer
+from services.voicevox_service import VoiceVoxService
+from repositories.data_repository import DataRepository
 
 class AudioManager:
     def __init__(self, logger: logging.Logger):
@@ -38,7 +41,7 @@ class AudioManager:
             if player.vc.is_playing():
                 player.vc.stop()
     
-    def add_vc(self, guild_id: int, channel_id: int, vc):
+    def add_vc(self, guild_id: int, channel_id: int, vc: discord.VoiceClient):
         key = (guild_id, channel_id)
     
         self.players[key] = AudioPlayer(vc)
@@ -51,7 +54,7 @@ class AudioManager:
             self.connected_guild_count()
         )
     
-    async def connect_vc(self, guild_id: int, channel: discord.VoiceChannel) -> bool:
+    async def connect_vc(self, guild_id: int, channel: discord.VoiceChannel):
         if self.get_connected_vc(guild_id):
             return False
 
@@ -67,6 +70,14 @@ class AudioManager:
 
         self.add_vc(guild_id, channel.id, vc)
         return True
+    
+    async def move_vc(self, guild_id: int, channel: discord.VoiceChannel):
+        for (gid, cid), _ in self.players.items():
+            if gid == guild_id:
+                if await self.disconnect_vc(gid, cid):
+                    return await self.connect_vc(guild_id, channel)
+
+        return False
     
     async def disconnect_vc(self, guild_id: int, channel_id: int):
         key = (guild_id, channel_id)
@@ -106,7 +117,7 @@ class AudioManager:
 
         return True
     
-    async def update_vc(self, bot, voicevox, voicevox_url):
+    async def update_vc(self, bot: commands.Bot, voicevox: VoiceVoxService, voicevox_url: str):
         now = datetime.datetime.now()
         keys = list(self.players.keys())
         
@@ -136,17 +147,17 @@ class AudioManager:
                     self.connected_time_count()
                 )
     
-    async def self_disconnect(self, repo):
+    async def self_disconnect(self, repo: DataRepository):
         now = datetime.datetime.now()
         keys = list(self.players.keys())
         
         for guild_id, channel_id in keys:
-            if repo.get_active_auto_connect(str(guild_id)) == channel_id:
+            if repo.get_active_auto_connect(str(guild_id)):
                 idol_time = self.idol_time.get((guild_id, channel_id))
                 if idol_time and (now - idol_time).total_seconds() >= 10 * 60:
                     await self.disconnect_vc(guild_id, channel_id)
 
-    async def play(self, guild_id: int, channel_id: int, content, speaker, voicevox, voicevox_url):
+    async def play(self, guild_id: int, channel_id: int, content: str, speaker: int, voicevox: VoiceVoxService, voicevox_url: str):
         key = (guild_id, channel_id)
         player = self.players.get(key)
         if player:

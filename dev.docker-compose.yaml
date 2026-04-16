@@ -1,6 +1,9 @@
 services:
   jbot:
-    build: .
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    tty: true
     environment:
       - token=${API_TOKEN}
     volumes:

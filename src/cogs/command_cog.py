@@ -22,12 +22,14 @@ logging.basicConfig(
 logger = logging.getLogger("discord")
 logger.setLevel(logging.INFO)
 
+DATA_PATH = "/root/opt/data.json"
+
 class Command(commands.Cog):
-    def __init__(self, bot:commands.Bot):
+    def __init__(self, bot: commands.Bot):
         self.logger = logger
         self.bot = bot
         self.message_filter = MessageFilterService(self.bot.user)
-        self.repo = DataRepository()
+        self.repo = DataRepository(DATA_PATH)
         self.audio_manager = AudioManager(self.logger)
         self.counter = CounterService(self.repo)
         self.counter_embed = CounterEmbedService(self.counter)
@@ -43,10 +45,11 @@ class Command(commands.Cog):
             await self.counter_message_manager.update(message.channel)
 
         if self.message_filter.is_playable_message(message):
-            if not self.audio_manager.is_connected_channel(message.guild.id, message.channel.id):
-                if self.repo.get_active_auto_connect(str(message.guild.id)) != message.channel.id:
-                    return
-                success = await self.audio_manager.connect_vc(message.guild.id, message.channel)
+            if not self.audio_manager.is_connected_channel(message.guild.id, message.channel.id) and self.repo.get_active_auto_connect(str(message.guild.id)):
+                if self.audio_manager.get_connected_vc(message.guild.id) is None:
+                    success = await self.audio_manager.connect_vc(message.guild.id, message.channel)
+                else:
+                    success = await self.audio_manager.move_vc(message.guild.id, message.channel)
 
                 if not success:
                     return
@@ -63,7 +66,7 @@ class Command(commands.Cog):
     @discord.app_commands.command(
         description = "add to counter"
     )
-    async def add(self,interaction: discord.Interaction,member: discord.Member):
+    async def add(self, interaction: discord.Interaction, member: discord.Member):
         if interaction.channel_id != self.counter.get_send_channel_id(str(interaction.guild_id)) or interaction.user.id in self.counter.get_ban_users(str(interaction.guild_id)):
             await interaction.response.send_message(
                 "このチャンネルではサポートされていません",
@@ -79,13 +82,10 @@ class Command(commands.Cog):
     @discord.app_commands.command(
         description = "set auto connect voice channel"
     )
-    @discord.app_commands.describe(
-        channel="セットするボイスチャンネル"
-    )
-    async def set_auto_connect(self, interaction: discord.Interaction, channel: discord.VoiceChannel):
-        self.repo.set_active_auto_connect(str(interaction.guild_id), channel.id)
+    async def set_auto_connect(self, interaction: discord.Interaction):
+        self.repo.set_active_auto_connect(str(interaction.guild_id), True)
         await interaction.response.send_message(
-            f"自動接続ボイスチャンネル`{channel.name}`をセットしました",
+            f"自動接続機能を有効化しました",
             ephemeral=True
         )
 
@@ -93,13 +93,9 @@ class Command(commands.Cog):
         description = "reset auto connect voice channel"
     )
     async def reset_auto_connect(self, interaction: discord.Interaction):
-        channel_id = self.repo.get_active_auto_connect(str(interaction.guild_id))
-        if channel_id != 0:
-            if self.audio_manager.is_connected_channel(interaction.guild_id, channel_id):
-                await self.audio_manager.disconnect_vc(interaction.guild_id, channel_id)
-        self.repo.set_active_auto_connect(str(interaction.guild_id), 0)
+        self.repo.set_active_auto_connect(str(interaction.guild_id), False)
         await interaction.response.send_message(
-            "自動接続ボイスチャンネルをリセットしました",
+            "自動接続機能を無効化しました",
             ephemeral=True
         )
 
@@ -228,11 +224,11 @@ class Command(commands.Cog):
                 ephemeral=True
             )
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes = 1)
     async def self_disconnect(self):
         await self.audio_manager.self_disconnect(self.repo)
 
-    @tasks.loop(minutes=10)
+    @tasks.loop(minutes = 10)
     async def reconnect_loop(self):
         await self.audio_manager.update_vc(self.bot, self.voicevox, self.voicevox_url)
 

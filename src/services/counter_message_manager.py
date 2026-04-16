@@ -1,7 +1,10 @@
 import discord
+from discord.ext import commands
+from services.counter_service import CounterService
+from services.counter_embed_service import CounterEmbedService
 
 class CounterMessageManager:
-    def __init__(self, bot, counter_service, counter_embed_service):
+    def __init__(self, bot: commands.Bot, counter_service: CounterService, counter_embed_service: CounterEmbedService):
         self.bot = bot
         self.counter = counter_service
         self.counter_embed = counter_embed_service

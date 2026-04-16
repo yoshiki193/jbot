@@ -1,11 +1,13 @@
 import discord
+from discord.ext import commands
+from repositories.data_repository import DataRepository
 
 class CounterService:
-    def __init__(self, repo):
+    def __init__(self, repo: DataRepository):
         self.repo = repo
 
     def add(self, member_id: str, guild_id: str):
-        self.repo.increment_counter_users(guild_id, member_id)
+        self.repo.set_counter_users(guild_id, member_id)
     
     def get_users(self, guild_id: str):
         return self.repo.get_counter_users(guild_id)
@@ -22,7 +24,7 @@ class CounterService:
     def get_send_channel_id(self, guild_id: str):
         return self.repo.get_send_channel_id(guild_id)
     
-    def is_counter_update_message(self, message: discord.Message, bot) -> bool:
+    def is_counter_update_message(self, message: discord.Message, bot: commands.Bot):
         if message is None or message.guild is None or message.channel is None:
             return False
 

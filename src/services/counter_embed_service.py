@@ -1,11 +1,13 @@
 import discord
+from discord.ext import commands
+from services.counter_service import CounterService
 import math
 
 class CounterEmbedService:
-    def __init__(self, counter_service):
+    def __init__(self, counter_service: CounterService):
         self.counter = counter_service
 
-    async def generate_embed(self, guild_id: str, bot):
+    async def generate_embed(self, guild_id: str, bot: commands.Bot):
         data_list = self.counter.get_users(guild_id)
         payload = []
         sum = 0

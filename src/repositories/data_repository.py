@@ -1,7 +1,7 @@
 import json
 
 class DataRepository:
-    def __init__(self, path="data.json"):
+    def __init__(self, path):
         self.path = path
         self.data = self._load()
 
@@ -37,23 +37,23 @@ class DataRepository:
         guild = self.get_guild(guild_id)
         return guild["voicevox"]["active_auto_connect"]
     
-    def set_active_auto_connect(self, guild_id: str, channel_id: int):
+    def set_active_auto_connect(self, guild_id: str, enabled: bool):
         guild = self.get_guild(guild_id)
-        guild["voicevox"]["active_auto_connect"] = channel_id
+        guild["voicevox"]["active_auto_connect"] = enabled
         self.save()
     
     def get_counter_users(self, guild_id: str):
         guild = self.get_guild(guild_id)
         return guild["counter"]["users"]
+
+    def set_counter_users(self, guild_id: str, member_id: str):
+        users = self.get_guild(guild_id)["counter"]["users"]
+        users[member_id] = users.get(member_id, 0) + 1
+        self.save()
     
     def get_ban_users(self, guild_id: str):
         guild = self.get_guild(guild_id)
         return guild["counter"]["ban_users"]
-    
-    def increment_counter_users(self, guild_id: str, member_id: str):
-        users = self.get_guild(guild_id)["counter"]["users"]
-        users[member_id] = users.get(member_id, 0) + 1
-        self.save()
     
     def get_send_channel_id(self, guild_id: str):
         guild = self.get_guild(guild_id)

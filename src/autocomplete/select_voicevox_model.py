@@ -1,20 +1,14 @@
 import discord
 import requests
 
-async def select_model(
-        interaction: discord.Interaction,
-        current: str,
-    ):
+async def select_model(interaction: discord.Interaction, current: str):
         vvs = ['四国めたん', 'ずんだもん', '春日部つむぎ', '冥鳴ひまり', 'ナースロボ＿タイプＴ', '中国うさぎ', '東北ずん子', '東北きりたん']
         return [
-            discord.app_commands.Choice(name=vv, value=vv)
+            discord.app_commands.Choice(name = vv, value = vv)
             for vv in vvs if current.lower() in vv.lower()
         ]
 
-async def select_style(
-        interaction: discord.Interaction,
-        current: str,
-    ):
+async def select_style(interaction: discord.Interaction, current: str):
         vv = interaction.namespace.vv
         cog = interaction.client.get_cog("Command")
         styles = []
@@ -27,11 +21,11 @@ async def select_style(
                     styles.append(style["name"])
 
         return [
-            discord.app_commands.Choice(name=style, value=style)
+            discord.app_commands.Choice(name = style, value = style)
             for style in styles if current.lower() in style.lower()
         ]
 
-def convert_speaker_id(vv: str, style: str, voicevox_url):
+def convert_speaker_id(vv: str, style: str, voicevox_url: str):
         response = requests.get(f"{voicevox_url}/speakers")
         data = response.json()
 
