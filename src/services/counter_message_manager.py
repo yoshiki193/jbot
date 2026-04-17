@@ -10,13 +10,13 @@ class CounterMessageManager:
         self.counter_embed = counter_embed_service
 
     async def update(self, channel: discord.TextChannel):
-        last_id = self.counter.get_last_message_id(str(channel.guild.id))
+        last_id = self.counter.get_last_message_id(channel.guild.id)
 
         if last_id:
-            await self._delete_previous(self.counter.get_send_channel_id(str(channel.guild.id)), last_id)
+            await self._delete_previous(self.counter.get_send_channel_id(channel.guild.id), last_id)
 
         new_id = await self._send_new(channel)
-        self.counter.set_last_message_id(str(channel.guild.id), new_id)
+        self.counter.set_last_message_id(channel.guild.id, new_id)
 
     async def _delete_previous(self, channel_id: int, message_id: int):
         channel = await self.bot.fetch_channel(channel_id)
@@ -27,7 +27,7 @@ class CounterMessageManager:
             pass
 
     async def _send_new(self, channel: discord.TextChannel):
-        embed = await self.counter_embed.generate_embed(str(channel.guild.id), self.bot)
+        embed = await self.counter_embed.generate_embed(channel.guild.id, self.bot)
         msg = await channel.send(
             embed=discord.Embed.from_dict(embed),
             silent=True

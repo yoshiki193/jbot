@@ -45,7 +45,7 @@ class Command(commands.Cog):
             await self.counter_message_manager.update(message.channel)
 
         if self.message_filter.is_playable_message(message):
-            if not self.audio_manager.is_connected_channel(message.guild.id, message.channel.id) and self.repo.get_active_auto_connect(str(message.guild.id)):
+            if not self.audio_manager.is_connected_channel(message.guild.id, message.channel.id) and self.repo.get_active_auto_connect(message.guild.id):
                 if self.audio_manager.get_connected_vc(message.guild.id) is None:
                     success = await self.audio_manager.connect_vc(message.guild.id, message.channel)
                 else:
@@ -58,7 +58,7 @@ class Command(commands.Cog):
                 message.guild.id,
                 message.channel.id,
                 message.clean_content,
-                self.repo.get_voicevox_speaker(str(message.guild.id), str(message.author.id)) or 0,
+                self.repo.get_voicevox_speaker(message.guild.id, message.author.id) or 0,
                 self.voicevox,
                 self.voicevox_url
             )
@@ -67,14 +67,14 @@ class Command(commands.Cog):
         description = "add to counter"
     )
     async def add(self, interaction: discord.Interaction, member: discord.Member):
-        if interaction.channel_id != self.counter.get_send_channel_id(str(interaction.guild_id)) or interaction.user.id in self.counter.get_ban_users(str(interaction.guild_id)):
+        if interaction.channel_id != self.counter.get_send_channel_id(interaction.guild_id) or interaction.user.id in self.counter.get_ban_users(interaction.guild_id):
             await interaction.response.send_message(
                 "このチャンネルではサポートされていません",
                 ephemeral=True
             )
             return
 
-        self.counter.add(str(member.id), str(interaction.guild_id))
+        self.counter.add(member.id, interaction.guild_id)
         await interaction.response.send_message(
             content=f"updated\t{member.display_name}\t{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
@@ -83,7 +83,7 @@ class Command(commands.Cog):
         description = "set auto connect voice channel"
     )
     async def set_auto_connect(self, interaction: discord.Interaction):
-        self.repo.set_active_auto_connect(str(interaction.guild_id), True)
+        self.repo.set_active_auto_connect(interaction.guild_id, True)
         await interaction.response.send_message(
             f"自動接続機能を有効化しました",
             ephemeral=True
@@ -93,7 +93,7 @@ class Command(commands.Cog):
         description = "reset auto connect voice channel"
     )
     async def reset_auto_connect(self, interaction: discord.Interaction):
-        self.repo.set_active_auto_connect(str(interaction.guild_id), False)
+        self.repo.set_active_auto_connect(interaction.guild_id, False)
         await interaction.response.send_message(
             "自動接続機能を無効化しました",
             ephemeral=True
@@ -191,7 +191,7 @@ class Command(commands.Cog):
     )
     async def change_model(self, interaction: discord.Interaction, vv: str, style: str):
         self.audio_manager.clear_player(interaction.guild_id, interaction.channel_id)
-        self.repo.set_voicevox_speaker(str(interaction.guild_id), autocomplete.select_voicevox_model.convert_speaker_id(vv, style, self.voicevox_url), str(interaction.user.id))
+        self.repo.set_voicevox_speaker(interaction.guild_id, autocomplete.select_voicevox_model.convert_speaker_id(vv, style, self.voicevox_url), interaction.user.id)
         
         await interaction.response.send_message(
             f"あなたのモデルを{vv}の{style}に変更しました",

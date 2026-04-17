@@ -13,9 +13,9 @@ class DataRepository:
         with open(self.path, "w") as f:
             json.dump(self.data, f, indent=2)
     
-    def get_guild(self, guild_id :str) -> dict:
+    def get_guild(self, guild_id :int) -> dict:
         return self.data["guilds"].setdefault(
-            guild_id,
+            str(guild_id),
             {
                 "counter": {
                     "send_channel_id": 0,
@@ -33,46 +33,46 @@ class DataRepository:
     def get_voicevox_url(self):
         return self.data["voicevox_url"]
     
-    def get_active_auto_connect(self, guild_id: str):
+    def get_active_auto_connect(self, guild_id: int):
         guild = self.get_guild(guild_id)
         return guild["voicevox"]["active_auto_connect"]
     
-    def set_active_auto_connect(self, guild_id: str, enabled: bool):
+    def set_active_auto_connect(self, guild_id: int, enabled: bool):
         guild = self.get_guild(guild_id)
         guild["voicevox"]["active_auto_connect"] = enabled
         self.save()
     
-    def get_counter_users(self, guild_id: str):
+    def get_counter_users(self, guild_id: int):
         guild = self.get_guild(guild_id)
         return guild["counter"]["users"]
 
-    def set_counter_users(self, guild_id: str, member_id: str):
+    def set_counter_users(self, guild_id: int, member_id: int):
         users = self.get_guild(guild_id)["counter"]["users"]
-        users[member_id] = users.get(member_id, 0) + 1
+        users[str(member_id)] = users.get(str(member_id), 0) + 1
         self.save()
     
-    def get_ban_users(self, guild_id: str):
+    def get_ban_users(self, guild_id: int):
         guild = self.get_guild(guild_id)
         return guild["counter"]["ban_users"]
     
-    def get_send_channel_id(self, guild_id: str):
+    def get_send_channel_id(self, guild_id: int):
         guild = self.get_guild(guild_id)
         return guild["counter"]["send_channel_id"]
 
-    def get_last_message_id(self, guild_id: str):
+    def get_last_message_id(self, guild_id: int):
         guild = self.get_guild(guild_id)
         return guild["counter"]["last_message_id"]
     
-    def set_last_message_id(self, guild_id: str, last_message_id: int):
+    def set_last_message_id(self, guild_id: int, last_message_id: int):
         guild = self.get_guild(guild_id)
         guild["counter"]["last_message_id"] = last_message_id
         self.save()
 
-    def get_voicevox_speaker(self, guild_id: str, member_id: str):
+    def get_voicevox_speaker(self, guild_id: int, member_id: int):
         guild = self.get_guild(guild_id)
-        return guild["voicevox"]["speaker"].get(member_id)
+        return guild["voicevox"]["speaker"].get(str(member_id))
     
-    def set_voicevox_speaker(self, guild_id: str, speaker: int, member_id: str):
+    def set_voicevox_speaker(self, guild_id: int, speaker: int, member_id: int):
         guild = self.get_guild(guild_id)
-        guild["voicevox"]["speaker"][member_id] = speaker
+        guild["voicevox"]["speaker"][str(member_id)] = speaker
         self.save()
