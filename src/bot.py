@@ -10,7 +10,7 @@ INITIAL_EXTENSIONS = [
 token=os.environ["token"]
 
 intents=discord.Intents.all()
-bot=commands.Bot(command_prefix="$",intents=intents)
+bot=commands.Bot(command_prefix = "$",intents = intents)
 
 async def load_extension():
     for cog in INITIAL_EXTENSIONS:

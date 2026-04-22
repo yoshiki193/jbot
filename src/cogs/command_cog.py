@@ -6,10 +6,9 @@ from repositories.data_repository import DataRepository
 from services.counter_message_manager import CounterMessageManager
 from services.counter_embed_service import CounterEmbedService
 from services.audio_manager import AudioManager
-from services.counter_service import CounterService
 from services.voicevox_service import VoiceVoxService
 from services.message_filter_service import  MessageFilterService
-import autocomplete.select_voicevox_model
+from autocomplete.select_voicevox_model import SelectVoicevoxModel
 
 logging.basicConfig(
     level = logging.INFO,
@@ -30,18 +29,17 @@ class Command(commands.Cog):
         self.bot = bot
         self.message_filter = MessageFilterService(self.bot.user)
         self.repo = DataRepository(DATA_PATH)
-        self.audio_manager = AudioManager(self.logger)
-        self.counter = CounterService(self.repo)
-        self.counter_embed = CounterEmbedService(self.counter)
-        self.counter_message_manager = CounterMessageManager(self.bot, self.counter, self.counter_embed)
-        self.voicevox = VoiceVoxService()
-        self.voicevox_url = self.repo.get_voicevox_url()
+        self.counter_embed = CounterEmbedService(self.repo)
+        self.counter_message_manager = CounterMessageManager(self.bot, self.repo, self.counter_embed)
+        self.voicevox = VoiceVoxService(self.repo)
+        self.select_voicevox_model = SelectVoicevoxModel(self.repo)
+        self.audio_manager = AudioManager(self.repo, self.voicevox, self.logger)
         self.reconnect_loop.start()
         self.self_disconnect.start()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if self.counter.is_counter_update_message(message, self.bot.user):
+        if self.counter_message_manager.is_counter_update_message(message, self.bot.user):
             await self.counter_message_manager.update(message.channel)
 
         if self.message_filter.is_playable_message(message):
@@ -55,26 +53,24 @@ class Command(commands.Cog):
                     return
 
             await self.audio_manager.play(
-                message.guild.id,
-                message.channel.id,
-                message.clean_content,
-                self.repo.get_voicevox_speaker(message.guild.id, message.author.id) or 0,
-                self.voicevox,
-                self.voicevox_url
+                guild_id = message.guild.id,
+                channel_id = message.channel.id,
+                content = message.clean_content,
+                member_id = message.author.id
             )
 
     @discord.app_commands.command(
         description = "add to counter"
     )
     async def add(self, interaction: discord.Interaction, member: discord.Member):
-        if interaction.channel_id != self.counter.get_send_channel_id(interaction.guild_id) or interaction.user.id in self.counter.get_ban_users(interaction.guild_id):
+        if interaction.channel_id != self.repo.get_send_channel_id(interaction.guild_id) or interaction.user.id in self.repo.get_ban_users(interaction.guild_id):
             await interaction.response.send_message(
                 "このチャンネルではサポートされていません",
                 ephemeral=True
             )
             return
 
-        self.counter.add(member.id, interaction.guild_id)
+        self.counter_message_manager.add(interaction.guild_id, member.id)
         await interaction.response.send_message(
             content=f"updated\t{member.display_name}\t{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
@@ -182,16 +178,31 @@ class Command(commands.Cog):
                 ephemeral=True
             )
 
+    async def vv_autocomplete(self, interaction, current):
+        return await self.select_voicevox_model.select_model(interaction, current)
+    
+    async def style_autocomplete(self, interaction, current):
+        return await self.select_voicevox_model.select_style(interaction, current)
+    
     @discord.app_commands.command(
         description = "change model"
     )
     @discord.app_commands.autocomplete(
-        vv = autocomplete.select_voicevox_model.select_model,
-        style = autocomplete.select_voicevox_model.select_style
+        vv = vv_autocomplete,
+        style = style_autocomplete
     )
     async def change_model(self, interaction: discord.Interaction, vv: str, style: str):
         self.audio_manager.clear_player(interaction.guild_id, interaction.channel_id)
-        self.repo.set_voicevox_speaker(interaction.guild_id, autocomplete.select_voicevox_model.convert_speaker_id(vv, style, self.voicevox_url), interaction.user.id)
+        speaker = self.select_voicevox_model.convert_speaker_id(vv, style)
+
+        if speaker == -1:
+            await interaction.response.send_message(
+                "モデル変更に失敗しました",
+                ephemeral=True
+            )
+            return
+        
+        self.repo.set_voicevox_speaker(interaction.guild_id, speaker, interaction.user.id)
         
         await interaction.response.send_message(
             f"あなたのモデルを{vv}の{style}に変更しました",
@@ -202,7 +213,7 @@ class Command(commands.Cog):
         description = "subscribe user dict"
     )
     async def subscribe_user_dict(self, interaction: discord.Interaction, surface: str, pronunciation: str):
-        res = self.voicevox.subscribe_user_dict(surface, pronunciation, self.voicevox_url)
+        res = self.voicevox.subscribe_user_dict(surface, pronunciation)
         if res:
             embed = {
                 "title":"ユーザー辞書登録",
@@ -216,7 +227,7 @@ class Command(commands.Cog):
                 }]
             }
             await interaction.response.send_message(
-                embed=discord.Embed.from_dict(embed)
+                embed = discord.Embed.from_dict(embed)
             )
         else:
             await interaction.response.send_message(
@@ -226,11 +237,11 @@ class Command(commands.Cog):
 
     @tasks.loop(minutes = 1)
     async def self_disconnect(self):
-        await self.audio_manager.self_disconnect(self.repo)
+        await self.audio_manager.self_disconnect()
 
     @tasks.loop(minutes = 10)
     async def reconnect_loop(self):
-        await self.audio_manager.update_vc(self.bot, self.voicevox, self.voicevox_url)
+        await self.audio_manager.update_vc(self.bot)
 
     @reconnect_loop.before_loop
     async def before_reconnect_loop(self):

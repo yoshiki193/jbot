@@ -1,14 +1,14 @@
 import discord
 from discord.ext import commands
-from services.counter_service import CounterService
+from repositories.data_repository import DataRepository
 import math
 
 class CounterEmbedService:
-    def __init__(self, counter_service: CounterService):
-        self.counter = counter_service
+    def __init__(self, repo: DataRepository):
+        self.repo = repo
 
     async def generate_embed(self, guild_id: int, bot: commands.Bot):
-        data_list = self.counter.get_users(guild_id)
+        data_list = self.repo.get_counter_users(guild_id)
         payload = []
         sum = 0
 

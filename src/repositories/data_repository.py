@@ -46,9 +46,9 @@ class DataRepository:
         guild = self.get_guild(guild_id)
         return guild["counter"]["users"]
 
-    def set_counter_users(self, guild_id: int, member_id: int):
+    def set_counter_users(self, guild_id: int, member_id: int, incremental: int):
         users = self.get_guild(guild_id)["counter"]["users"]
-        users[str(member_id)] = users.get(str(member_id), 0) + 1
+        users[str(member_id)] = users.get(str(member_id), 0) + incremental
         self.save()
     
     def get_ban_users(self, guild_id: int):

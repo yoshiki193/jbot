@@ -5,17 +5,17 @@ from discord import FFmpegPCMAudio
 from services.voicevox_service import VoiceVoxService
 
 class AudioPlayer:
-    def __init__(self, vc: discord.VoiceClient):
+    def __init__(self, vc: discord.VoiceClient, voicevox: VoiceVoxService):
         self.vc = vc
+        self.voicevox = voicevox
         self.queue = deque()
         self.lock = asyncio.Lock()
         self.playing = False
 
-    async def enqueue(self, content: str, speaker: int, voicevox: VoiceVoxService, voicevox_url: str):
-        buffer = await voicevox.synthesize(
+    async def enqueue(self, content: str, speaker: int, voicevox_url: str):
+        buffer = await self.voicevox.synthesize(
             content,
-            speaker,
-            voicevox_url
+            speaker
         )
         async with self.lock:
             self.queue.append(buffer)

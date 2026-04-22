@@ -1,24 +1,25 @@
 import aiohttp
 import io
-import asyncio
 import requests
+from repositories.data_repository import DataRepository
 
 class VoiceVoxService:
-    def __init__(self):
+    def __init__(self, repo: DataRepository):
         self.session = aiohttp.ClientSession()
+        self.repo = repo
 
-    async def synthesize(self, text: str, speaker: int, voicevox_url: str):
+    async def synthesize(self, text: str, speaker: int):
         async with self.session.post(
-            f"{voicevox_url}/audio_query",
-            params={"text": text, "speaker": speaker}
+            f"{self.repo.get_voicevox_url()}/audio_query",
+            params = {"text": text, "speaker": speaker}
         ) as resp:
             resp.raise_for_status()
             query_json = await resp.json()
 
         async with self.session.post(
-            f"{voicevox_url}/synthesis",
-            params={"speaker": speaker},
-            json=query_json
+            f"{self.repo.get_voicevox_url()}/synthesis",
+            params = {"speaker": speaker},
+            json = query_json
         ) as resp:
             resp.raise_for_status()
             wav_bytes = await resp.read()
@@ -27,10 +28,10 @@ class VoiceVoxService:
         buffer.seek(0)
         return buffer
 
-    def subscribe_user_dict(self, surface: str, pronunciation: str, voicevox_url: str):
+    def subscribe_user_dict(self, surface: str, pronunciation: str):
         res = requests.post(
-            f"{voicevox_url}/audio_query",
-            params={"text": surface, "speaker": 0}
+            f"{self.repo.get_voicevox_url()}/audio_query",
+            params = {"text": surface, "speaker": 0}
         )
 
         if res.status_code != 200:
@@ -46,7 +47,7 @@ class VoiceVoxService:
             "accent_type": accent_type
         }
 
-        res = requests.post(f"{voicevox_url}/user_dict_word", params=payload)
+        res = requests.post(f"{self.repo.get_voicevox_url()}/user_dict_word", params = payload)
 
         if res.status_code == 200:
             return True
