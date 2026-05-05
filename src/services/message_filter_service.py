@@ -1,9 +1,10 @@
 import discord
+from discord.ext import commands
 import re
 
 class MessageFilterService:
-    def __init__(self, bot_user):
-        self.bot_user = bot_user
+    def __init__(self, bot: commands.Bot):
+        self.bot_user = bot.user
         self.custom_emoji_pattern = r"<a?:\w+:\d+>"
         self.url_pattern = r"https?://"
 

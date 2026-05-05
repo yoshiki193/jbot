@@ -26,9 +26,26 @@ class DataRepository:
                 "voicevox": {
                     "speaker": {},
                     "active_auto_connect": 0
-                }
+                },
+                "fix_msgs": {}
             }
         )
+    
+    def get_fix_msg(self, guild_id: int, channel_id: int):
+        fix_msgs = self.get_guild(guild_id)["fix_msgs"]
+        fix_msg_id = fix_msgs.get(str(channel_id), None)
+        return fix_msg_id
+    
+    def set_fix_msg(self, guild_id: int, channel_id: int, message_id: int):
+        guild = self.get_guild(guild_id)
+        guild["fix_msgs"][str(channel_id)] = message_id
+        self.save()
+    
+    def delete_fix_msg(self, guild_id: int, channel_id: int):
+        fix_msgs = self.get_guild(guild_id)["fix_msgs"]
+        fix_msgs.pop(str(channel_id), None)
+        self.get_guild(guild_id)["fix_msgs"] = fix_msgs
+        self.save()
 
     def get_voicevox_url(self):
         return self.data["voicevox_url"]

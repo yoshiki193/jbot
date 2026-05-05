@@ -12,7 +12,7 @@ class CounterMessageManager:
     def add(self, guild_id: int, member_id: int):
         self.repo.set_counter_users(guild_id, member_id, 1)
     
-    def is_counter_update_message(self, message: discord.Message, bot: commands.Bot):
+    def is_counter_update_message(self, message: discord.Message):
         if message is None or message.guild is None or message.channel is None:
             return False
 
@@ -20,7 +20,7 @@ class CounterMessageManager:
         if send_channel_id is None:
             return False
 
-        if (message.author != bot or "updated" in message.content) and message.channel.id == send_channel_id:
+        if (message.author != self.bot.user or "updated" in message.content) and message.channel.id == send_channel_id:
             return True
 
         return False

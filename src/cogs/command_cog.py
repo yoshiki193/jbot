@@ -8,6 +8,7 @@ from services.counter_embed_service import CounterEmbedService
 from services.audio_manager import AudioManager
 from services.voicevox_service import VoiceVoxService
 from services.message_filter_service import  MessageFilterService
+from services.fix_message import FixMessage
 from autocomplete.select_voicevox_model import SelectVoicevoxModel
 
 logging.basicConfig(
@@ -27,19 +28,23 @@ class Command(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.logger = logger
         self.bot = bot
-        self.message_filter = MessageFilterService(self.bot.user)
+        self.message_filter = MessageFilterService(self.bot)
         self.repo = DataRepository(DATA_PATH)
         self.counter_embed = CounterEmbedService(self.repo)
         self.counter_message_manager = CounterMessageManager(self.bot, self.repo, self.counter_embed)
         self.voicevox = VoiceVoxService(self.repo)
         self.select_voicevox_model = SelectVoicevoxModel(self.repo)
         self.audio_manager = AudioManager(self.repo, self.voicevox, self.logger)
+        self.fix_message = FixMessage(self.repo, self.bot)
         self.reconnect_loop.start()
         self.self_disconnect.start()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if self.counter_message_manager.is_counter_update_message(message, self.bot.user):
+        if self.fix_message.filter_fix_msg(message):
+            await self.fix_message.update(message)
+
+        if self.counter_message_manager.is_counter_update_message(message):
             await self.counter_message_manager.update(message.channel)
 
         if self.message_filter.is_playable_message(message):
@@ -58,6 +63,23 @@ class Command(commands.Cog):
                 content = message.clean_content,
                 member_id = message.author.id
             )
+
+    @discord.app_commands.command(
+        description = "fix message"
+    )
+    async def fix_msg(self, interaction: discord.Interaction, content: str):
+        message_id = await self.fix_message.send_fix_msg(interaction, content)
+        self.fix_message.register_fix_msg(interaction.guild_id, interaction.channel_id, message_id)
+    
+    @discord.app_commands.command(
+        description = "delete fix message"
+    )
+    async def delete_fix_msg(self, interaction: discord.Interaction):
+        self.fix_message.delete_fix_msg(interaction.guild_id, interaction.channel_id)
+        await interaction.response.send_message(
+            "固定メッセージを削除しました",
+            ephemeral=True
+        )
 
     @discord.app_commands.command(
         description = "add to counter"
