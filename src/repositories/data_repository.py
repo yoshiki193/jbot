@@ -25,7 +25,7 @@ class DataRepository:
                 },
                 "voicevox": {
                     "speaker": {},
-                    "active_auto_connect": 0
+                    "active_auto_connect": False
                 },
                 "fix_msgs": {}
             }
