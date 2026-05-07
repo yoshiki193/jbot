@@ -68,14 +68,24 @@ class Command(commands.Cog):
         description = "fix message"
     )
     async def fix_msg(self, interaction: discord.Interaction, content: str):
-        message_id = await self.fix_message.send_fix_msg(interaction, content)
-        self.fix_message.register_fix_msg(interaction.guild_id, interaction.channel_id, message_id)
+        await self.fix_message.send_fix_msg(interaction, content)
+    
+    @discord.app_commands.command(
+        description = "debug"
+    )
+    async def delete_msg(self, interaction: discord.Interaction, msg_id: str):
+        msg = await interaction.channel.fetch_message(int(msg_id))
+        await msg.delete()
+        await interaction.response.send_message(
+            "メッセージを削除しました",
+            ephemeral=True
+        )
     
     @discord.app_commands.command(
         description = "delete fix message"
     )
     async def delete_fix_msg(self, interaction: discord.Interaction):
-        self.fix_message.delete_fix_msg(interaction.guild_id, interaction.channel_id)
+        await self.fix_message.delete_fix_msg(interaction.guild_id, interaction.channel_id)
         await interaction.response.send_message(
             "固定メッセージを削除しました",
             ephemeral=True

@@ -6,18 +6,7 @@ class FixMessage:
     def __init__(self, repo: DataRepository, bot: commands.Bot):
         self.repo = repo
         self.bot = bot
-
-    async def send_fix_msg(self, interaction: discord.Interaction, content: str):
-        embed = discord.Embed(
-            title = content,
-            color = discord.Color.blue()
-        )
-
-        await interaction.response.send_message(embed = embed, silent = True)
-        message = await interaction.original_response()
-
-        return message.id
-
+    
     def filter_fix_msg(self, message: discord.Message):
         if message is None or message.guild is None or message.channel is None:
             return False
@@ -27,10 +16,24 @@ class FixMessage:
             return False
         return True
 
-    def register_fix_msg(self, guild_id: int, channel_id: int, message_id: int):
-        self.repo.set_fix_msg(guild_id, channel_id, message_id)
+    async def send_fix_msg(self, interaction: discord.Interaction, content: str):
+        msg_id = self.repo.get_fix_msg(interaction.guild_id, interaction.channel_id)
     
-    def delete_fix_msg(self, guild_id: int, channel_id: int):
+        if msg_id is not None:
+            await self.delete_fix_msg(interaction.guild_id, interaction.channel_id)
+        
+        embed = discord.Embed(
+            title = content
+        )
+
+        await interaction.response.send_message(embed = embed, silent = True)
+        msg = await interaction.original_response()
+
+        self.repo.set_fix_msg(interaction.guild_id, interaction.channel_id, msg.id)
+    
+    async def delete_fix_msg(self, guild_id: int, channel_id: int):
+        msg_id = self.repo.get_fix_msg(guild_id, channel_id)
+        await self._delete_previous(channel_id, msg_id)
         self.repo.delete_fix_msg(guild_id, channel_id)
     
     async def update(self, message: discord.Message):
@@ -41,7 +44,7 @@ class FixMessage:
 
         new_id = await self._send_new(message, content)
 
-        self.register_fix_msg(message.guild.id, message.channel.id, new_id)
+        self.repo.set_fix_msg(message.guild.id, message.channel.id, new_id)
 
     async def _delete_previous(self, channel_id: int, message_id: int):
         channel = await self.bot.fetch_channel(channel_id)
@@ -56,8 +59,7 @@ class FixMessage:
 
     async def _send_new(self, message: discord.Message, content):
         embed = discord.Embed(
-            title = content,
-            color = discord.Color.blue()
+            title = content
         )
 
         msg = await message.channel.send(embed = embed, silent = True)
