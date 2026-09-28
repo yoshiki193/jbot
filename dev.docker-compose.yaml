@@ -5,6 +5,6 @@ services:
       dockerfile: dev.Dockerfile
     tty: true
     environment:
-      - token=${API_TOKEN}
+      - API_TOKEN=${API_TOKEN}
     volumes:
       - ./src:/app

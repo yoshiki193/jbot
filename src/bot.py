@@ -7,7 +7,7 @@ INITIAL_EXTENSIONS = [
     "cogs.command_cog",
 ]
 
-token=os.environ["token"]
+token=os.environ["API_TOKEN"]
 
 intents=discord.Intents.all()
 bot=commands.Bot(command_prefix = "$",intents = intents)
