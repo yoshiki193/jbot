@@ -1,7 +1,0 @@
-services:
-  jbot:
-    build: .
-    environment:
-      - token=${API_TOKEN}
-    volumes:
-      - ./src:/root/opt

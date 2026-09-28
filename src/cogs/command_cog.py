@@ -2,6 +2,7 @@ import discord
 from discord.ext import tasks, commands
 import logging
 import datetime
+import os
 from repositories.data_repository import DataRepository
 from services.counter_message_manager import CounterMessageManager
 from services.counter_embed_service import CounterEmbedService
@@ -22,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger("discord")
 logger.setLevel(logging.INFO)
 
-DATA_PATH = "/root/opt/data.json"
+DATA_PATH = os.environ.get("DATA_PATH", "./data.json")
 
 class Command(commands.Cog):
     def __init__(self, bot: commands.Bot):

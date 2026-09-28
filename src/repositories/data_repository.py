@@ -1,9 +1,13 @@
 import json
+import os
 
 class DataRepository:
     def __init__(self, path):
         self.path = path
-        self.data = self._load()
+        if os.path.exists(self.path):
+            self.data = self._load()
+        else :
+            self.data = {}
 
     def _load(self):
         with open(self.path) as f:
