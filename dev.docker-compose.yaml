@@ -5,6 +5,11 @@ services:
       dockerfile: dev.Dockerfile
     tty: true
     environment:
-      - API_TOKEN=${API_TOKEN}
+      API_TOKEN: ${API_TOKEN}
+      CLAUDE_CONFIG_DIR: /root/.claude
     volumes:
       - ./src:/app
+      - claude-code-config:/root/.claude
+
+volumes:
+  claude-code-config:

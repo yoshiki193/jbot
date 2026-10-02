@@ -1,42 +1,33 @@
+import logging
 import discord
-import requests
-from repositories.data_repository import DataRepository
+from services.voicevox_service import VoiceVoxService
+
+logger = logging.getLogger(__name__)
+
+MODEL_NAMES = ['四国めたん', 'ずんだもん', '春日部つむぎ', '冥鳴ひまり', 'ナースロボ＿タイプＴ', '中国うさぎ', '東北ずん子', '東北きりたん']
+MAX_CHOICES = 25
+
+def _to_choices(names: list[str], current: str) -> list[discord.app_commands.Choice[str]]:
+    current = current.lower()
+    return [
+        discord.app_commands.Choice(name = name, value = name)
+        for name in names if current in name.lower()
+    ][:MAX_CHOICES]
 
 class SelectVoicevoxModel:
-    def __init__(self, repo: DataRepository):
-        self.repo = repo
+    def __init__(self, voicevox: VoiceVoxService):
+        self.voicevox = voicevox
 
     async def select_model(self, interaction: discord.Interaction, current: str):
-            vvs = ['四国めたん', 'ずんだもん', '春日部つむぎ', '冥鳴ひまり', 'ナースロボ＿タイプＴ', '中国うさぎ', '東北ずん子', '東北きりたん']
-            return [
-                discord.app_commands.Choice(name = vv, value = vv)
-                for vv in vvs if current.lower() in vv.lower()
-            ]
+        return _to_choices(MODEL_NAMES, current)
 
     async def select_style(self, interaction: discord.Interaction, current: str):
-            vv = interaction.namespace.vv
-            styles = []
-            response = requests.get(f"{self.repo.get_voicevox_url()}/speakers")
-            data = response.json()
-
-            for speaker in data:
-                if speaker["name"] == vv:
-                    for style in speaker["styles"]:
-                        styles.append(style["name"])
-
-            return [
-                discord.app_commands.Choice(name = style, value = style)
-                for style in styles if current.lower() in style.lower()
-            ]
-
-    def convert_speaker_id(self, vv: str, style: str):
-            response = requests.get(f"{self.repo.get_voicevox_url()}/speakers")
-            data = response.json()
-
-            for speaker in data:
-                if speaker["name"] == vv:
-                    for styles in speaker["styles"]:
-                        if styles["name"] == style:
-                            return styles["id"]
-            
-            return -1
+        vv = getattr(interaction.namespace, "vv", None)
+        if not vv:
+            return []
+        try:
+            styles = await self.voicevox.get_style_names(vv)
+        except Exception:
+            logger.exception("failed to fetch styles: vv=%s", vv)
+            return []
+        return _to_choices(styles, current)

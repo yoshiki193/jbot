@@ -2,8 +2,7 @@ FROM python:3.14-slim
 
 ENV TZ=Asia/Tokyo
 ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
+ENV VOICEVOX_URL=http://voicevox-engine.default.svc.cluster.local:50021
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

@@ -1,28 +1,21 @@
 import asyncio
-import discord
-from discord.ext import commands
-import os
+import logging
+from config import Config
+from read_bot import ReadBot
 
-INITIAL_EXTENSIONS = [
-    "cogs.command_cog",
-]
-
-token=os.environ["API_TOKEN"]
-
-intents=discord.Intents.all()
-bot=commands.Bot(command_prefix = "$",intents = intents)
-
-async def load_extension():
-    for cog in INITIAL_EXTENSIONS:
-        await bot.load_extension(cog)
+logging.basicConfig(
+    level = logging.INFO,
+    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers = [
+        logging.StreamHandler()
+    ]
+)
 
 async def main():
+    config = Config.from_env()
+    bot = ReadBot(config)
     async with bot:
-        await load_extension()
-        await bot.start(token=token)
+        await bot.start(config.token)
 
-@bot.event
-async def on_ready():
-    await bot.tree.sync()
-
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

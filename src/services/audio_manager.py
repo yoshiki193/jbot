@@ -1,166 +1,141 @@
-import discord
-from discord.ext import commands
-import logging
-import datetime
 import asyncio
+import datetime
+import logging
+from collections import defaultdict
+import discord
+from repositories.data_repository import DataRepository
 from services.audio_player import AudioPlayer
 from services.voicevox_service import VoiceVoxService
-from repositories.data_repository import DataRepository
+
+logger = logging.getLogger(__name__)
+
+IDLE_TIMEOUT = datetime.timedelta(minutes = 10)
+RECONNECT_INTERVAL = datetime.timedelta(hours = 8)
+RECONNECT_NOTICE = "再接続します"
+DEFAULT_SPEAKER = 0
+
+def has_listeners(channel: discord.abc.Connectable) -> bool:
+    return any(not member.bot for member in channel.members)
 
 class AudioManager:
-    def __init__(self, repo: DataRepository, voicevox: VoiceVoxService, logger: logging.Logger):
-        self.logger = logger
+    """ギルドごとの VC 接続と読み上げキューを管理する（1 ギルドにつき 1 接続）。"""
+
+    def __init__(self, repo: DataRepository, voicevox: VoiceVoxService):
         self.repo = repo
         self.voicevox = voicevox
-        self.players: dict[tuple[int, int], AudioPlayer] = {}
-        self.connect_time: dict[tuple[int,int], datetime.datetime] = {}
-        self.idol_time: dict[tuple[int,int], datetime.datetime] = {}
-    
-    def connected_guild_count(self) -> int:
-        return len({guild_id for guild_id, _ in self.players.keys()})
-    
-    def connected_time_count(self) -> int:
-        return len([guild_id for guild_id, _ in self.connect_time.keys()])
+        self.players: dict[int, AudioPlayer] = {}
+        self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
-    def idol_time_count(self) -> int:
-        return len([guild_id for guild_id, _ in self.idol_time.keys()])
-    
+    def get_vc(self, guild_id: int) -> discord.VoiceClient | None:
+        player = self.players.get(guild_id)
+        return player.vc if player else None
+
     def is_connected_channel(self, guild_id: int, channel_id: int) -> bool:
-        vc = self.get_connected_vc(guild_id)
+        vc = self.get_vc(guild_id)
         return vc is not None and vc.channel.id == channel_id
-    
-    def get_connected_vc(self, guild_id: int):
-        for (gid, _), player in self.players.items():
-            if gid == guild_id:
-                return player.vc
-        return None
-    
-    def clear_player(self, guild_id: int, channel_id: int):
-        key = (guild_id, channel_id)
-        player = self.players.get(key)
-        if player:
-            player.queue.clear()
-            if player.vc.is_playing():
-                player.vc.stop()
-    
-    def add_vc(self, guild_id: int, channel_id: int, vc: discord.VoiceClient):
-        key = (guild_id, channel_id)
-    
-        self.players[key] = AudioPlayer(vc, self.voicevox)
-        self.connect_time[key] = datetime.datetime.now()
 
-        self.logger.info(
+    def speak(self, guild_id: int, text: str, member_id: int | None = None) -> bool:
+        player = self.players.get(guild_id)
+        if player is None:
+            return False
+
+        speaker = DEFAULT_SPEAKER
+        if member_id is not None:
+            stored = self.repo.get_voicevox_speaker(guild_id, member_id)
+            if stored is not None:
+                speaker = stored
+
+        player.enqueue(text, speaker)
+        return True
+
+    async def connect(self, channel: discord.VoiceChannel) -> bool:
+        async with self._locks[channel.guild.id]:
+            if channel.guild.id in self.players:
+                return False
+            return await self._connect(channel)
+
+    async def ensure_connected(self, channel: discord.VoiceChannel) -> bool:
+        """指定 VC に接続済みの状態にする。別 VC に接続中なら移動する。"""
+        guild_id = channel.guild.id
+        async with self._locks[guild_id]:
+            if self.is_connected_channel(guild_id, channel.id):
+                return True
+            await self._disconnect(guild_id)
+            return await self._connect(channel)
+
+    async def disconnect(self, guild_id: int) -> bool:
+        async with self._locks[guild_id]:
+            return await self._disconnect(guild_id)
+
+    async def handle_bot_left(self, guild_id: int):
+        """キックなど外部要因で切断されたときに管理情報を片付ける。"""
+        async with self._locks[guild_id]:
+            player = self.players.get(guild_id)
+            if player is not None and not player.vc.is_connected():
+                await self._disconnect(guild_id)
+
+    async def disconnect_idle(self):
+        now = discord.utils.utcnow()
+        for guild_id, player in list(self.players.items()):
+            if self.repo.get_active_auto_connect(guild_id) and now - player.last_active_at >= IDLE_TIMEOUT:
+                await self.disconnect(guild_id)
+
+    async def reconnect_long_lived(self):
+        now = discord.utils.utcnow()
+        for guild_id, player in list(self.players.items()):
+            if now - player.connected_at < RECONNECT_INTERVAL:
+                continue
+
+            channel = player.vc.channel
+            player.enqueue(RECONNECT_NOTICE, DEFAULT_SPEAKER)
+            await player.wait_until_idle(timeout = 15)
+
+            async with self._locks[guild_id]:
+                if self.players.get(guild_id) is not player:
+                    continue
+                await self._disconnect(guild_id)
+                if await self._connect(channel):
+                    logger.info("VC reconnected: guild=%s channel=%s", guild_id, channel.id)
+
+    async def close_all(self):
+        for guild_id in list(self.players):
+            await self.disconnect(guild_id)
+
+    async def _connect(self, channel: discord.VoiceChannel) -> bool:
+        guild_id = channel.guild.id
+
+        # 管理外の接続が残っていると connect が失敗するため先に片付ける
+        stale = channel.guild.voice_client
+        if stale is not None:
+            await stale.disconnect(force = True)
+
+        try:
+            vc = await channel.connect(self_deaf = True)
+        except Exception:
+            logger.exception("VC connect failed: guild=%s channel=%s", guild_id, channel.id)
+            return False
+
+        self.players[guild_id] = AudioPlayer(vc, self.voicevox)
+        logger.info(
             "VC connected: guild=%s channel=%s | connected guilds=%d",
-            guild_id,
-            channel_id,
-            self.connected_guild_count()
+            guild_id, channel.id, len(self.players)
         )
-    
-    async def connect_vc(self, guild_id: int, channel: discord.VoiceChannel):
-        if self.get_connected_vc(guild_id):
-            return False
-
-        try:
-            vc = await channel.connect(self_deaf=True)
-        except Exception:
-            self.logger.exception(
-                "VC connect failed: guild=%s channel=%s",
-                guild_id,
-                channel.id,
-            )
-            return False
-
-        self.add_vc(guild_id, channel.id, vc)
         return True
-    
-    async def move_vc(self, guild_id: int, channel: discord.VoiceChannel):
-        for (gid, cid), _ in self.players.items():
-            if gid == guild_id:
-                if await self.disconnect_vc(gid, cid):
-                    return await self.connect_vc(guild_id, channel)
 
-        return False
-    
-    async def disconnect_vc(self, guild_id: int, channel_id: int):
-        key = (guild_id, channel_id)
-        player = self.players.get(key)
-
-        if not player:
+    async def _disconnect(self, guild_id: int) -> bool:
+        player = self.players.pop(guild_id, None)
+        if player is None:
             return False
+
+        channel_id = player.vc.channel.id if player.vc.channel else None
+        await player.close()
         try:
-            if player.vc and player.vc.is_connected():
-                if player.vc.is_playing():
-                    player.vc.stop()
-                
-                await player.vc.disconnect()
-            
-            self.logger.info(
-                "VC disconnected: guild=%s channel=%s | connected guilds=%d",
-                guild_id,
-                channel_id,
-                self.connected_guild_count()
-            )
+            await player.vc.disconnect(force = True)
         except Exception:
-            self.logger.exception(
-                "VC disconnect failed: guild=%s channel=%s",
-                guild_id,
-                channel_id,
-            )
-        finally:
-            self.players.pop(key, None)
-            self.connect_time.pop(key, None)
-            self.idol_time.pop(key, None)
-            self.logger.info(
-                    "connected guilds=%d time count=%d idol time count=%d",
-                    self.connected_guild_count(),
-                    self.connected_time_count(),
-                    self.idol_time_count()
-                )
+            logger.exception("VC disconnect failed: guild=%s channel=%s", guild_id, channel_id)
 
+        logger.info(
+            "VC disconnected: guild=%s channel=%s | connected guilds=%d",
+            guild_id, channel_id, len(self.players)
+        )
         return True
-    
-    async def update_vc(self, bot: commands.Bot):
-        now = datetime.datetime.now()
-        keys = list(self.players.keys())
-        
-        for guild_id, channel_id in keys:
-            connect_time = self.connect_time.get((guild_id, channel_id))
-            if connect_time and (now - connect_time).total_seconds() >= 8 * 3600:
-                await self.play(
-                    guild_id,
-                    channel_id,
-                    "再接続します",
-                    0,
-                )
-
-                await asyncio.sleep(2)
-
-                channel = await bot.fetch_channel(channel_id)
-
-                await self.disconnect_vc(guild_id, channel_id)
-                await self.connect_vc(guild_id, channel)
-                self.logger.info(
-                    "VC reconnected: guild=%s channel=%s | connected guilds=%d time count=%d",
-                    guild_id,
-                    channel_id,
-                    self.connected_guild_count(),
-                    self.connected_time_count()
-                )
-    
-    async def self_disconnect(self):
-        now = datetime.datetime.now()
-        keys = list(self.players.keys())
-        
-        for guild_id, channel_id in keys:
-            if self.repo.get_active_auto_connect(guild_id):
-                idol_time = self.idol_time.get((guild_id, channel_id))
-                if idol_time and (now - idol_time).total_seconds() >= 10 * 60:
-                    await self.disconnect_vc(guild_id, channel_id)
-
-    async def play(self, guild_id: int, channel_id: int, content: str, member_id: int):
-        key = (guild_id, channel_id)
-        player = self.players.get(key)
-        speaker = self.repo.get_voicevox_speaker(guild_id, member_id) or 0
-        if player:
-            self.idol_time[key] = datetime.datetime.now()
-            await player.enqueue(content, speaker, self.repo.get_voicevox_url())
