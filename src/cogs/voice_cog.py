@@ -74,14 +74,12 @@ class VoiceCog(commands.Cog):
 
     @app_commands.command(description = "set auto connect voice channel")
     @app_commands.guild_only()
-    @app_commands.default_permissions(manage_guild = True)
     async def set_auto_connect(self, interaction: discord.Interaction):
         self.repo.set_active_auto_connect(interaction.guild_id, True)
         await interaction.response.send_message("自動接続機能を有効化しました", ephemeral = True)
 
     @app_commands.command(description = "reset auto connect voice channel")
     @app_commands.guild_only()
-    @app_commands.default_permissions(manage_guild = True)
     async def reset_auto_connect(self, interaction: discord.Interaction):
         self.repo.set_active_auto_connect(interaction.guild_id, False)
         await interaction.response.send_message("自動接続機能を無効化しました", ephemeral = True)

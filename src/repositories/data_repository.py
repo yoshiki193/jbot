@@ -6,7 +6,10 @@ CREATE TABLE IF NOT EXISTS guilds (
     guild_id                INTEGER PRIMARY KEY,
     counter_send_channel_id INTEGER NOT NULL DEFAULT 0,
     counter_last_message_id INTEGER NOT NULL DEFAULT 0,
-    active_auto_connect     INTEGER NOT NULL DEFAULT 0
+    active_auto_connect     INTEGER NOT NULL DEFAULT 0,
+    counter_title           TEXT    NOT NULL DEFAULT '寝落ちカウンター',
+    counter_multiplier      INTEGER NOT NULL DEFAULT 100,
+    counter_total_title     TEXT    NOT NULL DEFAULT '合計金額'
 );
 
 CREATE TABLE IF NOT EXISTS counter_users (
@@ -42,6 +45,14 @@ class FixMsg(NamedTuple):
     message_id: int
     content: str | None
 
+class CounterSettings(NamedTuple):
+    title: str
+    multiplier: int
+    total_title: str
+
+# 設定コマンド追加前から使われているギルド向けの既定値（従来の表示と同じ）
+DEFAULT_COUNTER_SETTINGS = CounterSettings("寝落ちカウンター", 100, "合計金額")
+
 class DataRepository:
     def __init__(self, path):
         self.path = path
@@ -55,6 +66,16 @@ class DataRepository:
         columns = {row[1] for row in self.conn.execute("PRAGMA table_info(fix_msgs)")}
         if "content" not in columns:
             self.conn.execute("ALTER TABLE fix_msgs ADD COLUMN content TEXT")
+
+        # カウンター表示設定の列追加前に作成された DB への後方互換
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(guilds)")}
+        defaults = DEFAULT_COUNTER_SETTINGS
+        if "counter_title" not in columns:
+            self.conn.execute(f"ALTER TABLE guilds ADD COLUMN counter_title TEXT NOT NULL DEFAULT '{defaults.title}'")
+        if "counter_multiplier" not in columns:
+            self.conn.execute(f"ALTER TABLE guilds ADD COLUMN counter_multiplier INTEGER NOT NULL DEFAULT {defaults.multiplier}")
+        if "counter_total_title" not in columns:
+            self.conn.execute(f"ALTER TABLE guilds ADD COLUMN counter_total_title TEXT NOT NULL DEFAULT '{defaults.total_title}'")
 
     def close(self):
         self.conn.close()
@@ -125,6 +146,24 @@ class DataRepository:
 
     def get_send_channel_id(self, guild_id: int):
         return self._fetch_one("SELECT counter_send_channel_id FROM guilds WHERE guild_id = ?", (guild_id,)) or 0
+
+    def set_send_channel_id(self, guild_id: int, send_channel_id: int):
+        self._set_guild_column(guild_id, "counter_send_channel_id", send_channel_id)
+
+    def get_counter_settings(self, guild_id: int) -> CounterSettings:
+        row = self.conn.execute(
+            "SELECT counter_title, counter_multiplier, counter_total_title FROM guilds WHERE guild_id = ?",
+            (guild_id,)
+        ).fetchone()
+        return CounterSettings(*row) if row else DEFAULT_COUNTER_SETTINGS
+
+    def set_counter_settings(self, guild_id: int, settings: CounterSettings):
+        with self.conn:
+            self._ensure_guild(guild_id)
+            self.conn.execute(
+                "UPDATE guilds SET counter_title = ?, counter_multiplier = ?, counter_total_title = ? WHERE guild_id = ?",
+                (settings.title, settings.multiplier, settings.total_title, guild_id)
+            )
 
     def get_last_message_id(self, guild_id: int):
         return self._fetch_one("SELECT counter_last_message_id FROM guilds WHERE guild_id = ?", (guild_id,)) or 0

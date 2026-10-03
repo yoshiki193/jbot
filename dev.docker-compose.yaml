@@ -11,10 +11,16 @@ services:
       - ./src:/app
       - claude-code-config:/root/.claude
 
+  voicevox-engine:
+    image: voicevox/voicevox_engine:nvidia-0.26.0-dev
+    container_name: voicevox-engine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
 volumes:
   claude-code-config:
-
-networks:
-  voicevox-engine-nw:
-    external: true
-    name: voicevox-engine-nw

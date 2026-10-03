@@ -8,7 +8,6 @@ INITIAL_EXTENSIONS = [
     "cogs.voice_cog",
     "cogs.counter_cog",
     "cogs.fix_message_cog",
-    "cogs.admin_cog",
 ]
 
 class ReadBot(commands.Bot):

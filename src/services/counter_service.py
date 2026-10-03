@@ -4,11 +4,10 @@ import math
 from collections import defaultdict
 import discord
 from discord.ext import commands
-from repositories.data_repository import DataRepository
+from repositories.data_repository import CounterSettings, DataRepository
 
 logger = logging.getLogger(__name__)
 
-FINE_PER_COUNT = 100
 BAR_WIDTH = 10
 
 class CounterService:
@@ -18,6 +17,40 @@ class CounterService:
         self.bot = bot
         self.repo = repo
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+    async def set_channel(self, channel: discord.abc.Messageable, settings: CounterSettings):
+        """カウンターの送信先チャンネルと表示設定を保存し、集計 Embed を投稿する。"""
+        guild_id = channel.guild.id
+        async with self._locks[guild_id]:
+            old_channel_id = self.repo.get_send_channel_id(guild_id)
+            old_message_id = self.repo.get_last_message_id(guild_id)
+
+            # 送信に失敗した場合（権限不足など）は設定を変更しない
+            msg = await channel.send(embed = await self.build_embed(guild_id, settings), silent = True)
+            await self._delete_previous(old_channel_id, old_message_id)
+
+            self.repo.set_counter_settings(guild_id, settings)
+            self.repo.set_send_channel_id(guild_id, channel.id)
+            self.repo.set_last_message_id(guild_id, msg.id)
+
+    async def unset_channel(self, guild_id: int) -> bool:
+        """カウンターの送信先チャンネルを解除する。集計値は保持する。"""
+        async with self._locks[guild_id]:
+            channel_id = self.repo.get_send_channel_id(guild_id)
+            if not channel_id:
+                return False
+
+            await self._delete_previous(channel_id, self.repo.get_last_message_id(guild_id))
+            self.repo.set_send_channel_id(guild_id, 0)
+            self.repo.set_last_message_id(guild_id, 0)
+            return True
+
+    async def _delete_previous(self, channel_id: int, message_id: int):
+        if not channel_id or not message_id:
+            return
+        channel = self.bot.get_channel(channel_id)
+        if channel is not None:
+            await self._delete_message(channel, message_id)
 
     def can_add(self, guild_id: int, channel_id: int, user_id: int) -> bool:
         send_channel_id = self.repo.get_send_channel_id(guild_id)
@@ -47,10 +80,11 @@ class CounterService:
             msg = await channel.send(embed = await self.build_embed(guild_id), silent = True)
             self.repo.set_last_message_id(guild_id, msg.id)
 
-    async def build_embed(self, guild_id: int) -> discord.Embed:
+    async def build_embed(self, guild_id: int, settings: CounterSettings | None = None) -> discord.Embed:
+        settings = settings or self.repo.get_counter_settings(guild_id)
         users = self.repo.get_counter_users(guild_id)
         top = max(users.values(), default = 0)
-        embed = discord.Embed(title = "**寝落ちカウンター**", description = "コマンド：/add")
+        embed = discord.Embed(title = f"**{settings.title}**", description = "コマンド：/add")
 
         for user_id, count in users.items():
             name = await self._display_name(user_id)
@@ -61,7 +95,11 @@ class CounterService:
             )
 
         embed.add_field(name = " ", value = "─" * BAR_WIDTH, inline = False)
-        embed.add_field(name = "合計金額", value = f"```￥{sum(users.values()) * FINE_PER_COUNT}```", inline = False)
+        embed.add_field(
+            name = settings.total_title,
+            value = f"```{sum(users.values()) * settings.multiplier}```",
+            inline = False
+        )
         return embed
 
     async def _display_name(self, user_id: int) -> str:
