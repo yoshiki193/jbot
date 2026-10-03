@@ -44,3 +44,22 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: yoshiki193/k8s-config
+          ssh-key: ${{ secrets.K8S_CONFIG_DEPLOY_KEY }}
+
+      - name: Update image tag
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          sed -i "s|image: ghcr.io/yoshiki193/jbot:.*|image: ghcr.io/yoshiki193/jbot:${SHORT_SHA}|" jbot/deployment.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "jbot: update image to ${SHORT_SHA}"
+          git pull --rebase
+          git push
