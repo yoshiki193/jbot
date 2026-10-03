@@ -13,3 +13,8 @@ services:
 
 volumes:
   claude-code-config:
+
+networks:
+  voicevox-engine-nw:
+    external: true
+    name: voicevox-engine-nw
