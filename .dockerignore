@@ -1,4 +1,4 @@
-src/data.json
+src/data.db
 **/__pycache__/
 *.pyc
 **/.vscode/
