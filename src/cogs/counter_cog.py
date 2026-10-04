@@ -4,19 +4,13 @@ from discord import app_commands
 from discord.ext import commands
 from read_bot import ReadBot
 from repositories.data_repository import CounterSettings
-from services.counter_service import CounterService
 
 class CounterCog(commands.Cog):
-    """寝落ちカウンター。"""
+    """チャンネルごとのカウンター。"""
 
     def __init__(self, bot: ReadBot):
         self.bot = bot
-        self.counter = CounterService(bot, bot.repo)
-
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        if self.counter.should_refresh(message):
-            await self.counter.refresh(message.channel)
+        self.counter = bot.counter
 
     @app_commands.command(description = "add to counter")
     @app_commands.guild_only()
@@ -25,7 +19,7 @@ class CounterCog(commands.Cog):
             await interaction.response.send_message("このチャンネルではサポートされていません", ephemeral = True)
             return
 
-        self.counter.add(interaction.guild_id, member.id)
+        self.counter.add(interaction.guild_id, interaction.channel_id, member.id)
         await interaction.response.send_message(
             content = f"updated\t{member.display_name}\t{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
@@ -46,7 +40,7 @@ class CounterCog(commands.Cog):
     ):
         await interaction.response.defer(ephemeral = True, thinking = True)
         try:
-            await self.counter.set_channel(interaction.channel, CounterSettings(title, multiplier, total_title))
+            await self.bot.sticky.set_counter(interaction.channel, CounterSettings(title, multiplier, total_title))
         except discord.Forbidden:
             await interaction.followup.send("このチャンネルにメッセージを送信する権限がありません", ephemeral = True)
             return
@@ -57,9 +51,9 @@ class CounterCog(commands.Cog):
     @app_commands.guild_only()
     async def reset_counter_channel(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral = True, thinking = True)
-        removed = await self.counter.unset_channel(interaction.guild_id)
+        removed = await self.counter.unset_channel(interaction.channel)
         await interaction.followup.send(
-            "カウンターのチャンネル設定を解除しました" if removed else "カウンターのチャンネルは設定されていません",
+            "このチャンネルのカウンターを解除しました" if removed else "このチャンネルにカウンターは設定されていません",
             ephemeral = True
         )
 

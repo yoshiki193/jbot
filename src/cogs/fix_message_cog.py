@@ -2,19 +2,13 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from read_bot import ReadBot
-from services.fix_message_service import FixMessageService
 
 class FixMessageCog(commands.Cog):
     """チャンネル最下部への固定メッセージ。"""
 
     def __init__(self, bot: ReadBot):
         self.bot = bot
-        self.fix_message = FixMessageService(bot, bot.repo)
-
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        if self.fix_message.should_repost(message):
-            await self.fix_message.repost(message.channel)
+        self.fix_message = bot.fix_message
 
     @app_commands.command(description = "fix message")
     @app_commands.guild_only()

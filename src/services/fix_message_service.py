@@ -15,10 +15,13 @@ class FixMessageService:
         self.repo = repo
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
+    def exists(self, channel: discord.abc.Messageable) -> bool:
+        return self.repo.get_fix_msg(channel.guild.id, channel.id) is not None
+
     def should_repost(self, message: discord.Message) -> bool:
         if message.guild is None or message.author == self.bot.user:
             return False
-        return self.repo.get_fix_msg(message.guild.id, message.channel.id) is not None
+        return self.exists(message.channel)
 
     async def set(self, channel: discord.abc.Messageable, content: str):
         async with self._locks[channel.id]:
