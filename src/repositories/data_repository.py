@@ -75,52 +75,9 @@ class DataRepository:
         self._init_schema()
 
     def _init_schema(self):
-        self.conn.execute("BEGIN")
-        try:
-            legacy = self._has_legacy_counter_schema()
-            if legacy:
-                self.conn.execute("ALTER TABLE guilds RENAME TO guilds_legacy")
-                self.conn.execute("ALTER TABLE counter_users RENAME TO counter_users_legacy")
-
+        with self.conn:
             for statement in SCHEMA:
                 self.conn.execute(statement)
-
-            if legacy:
-                self._migrate_legacy_counter()
-            self.conn.commit()
-        except Exception:
-            self.conn.rollback()
-            raise
-
-    def _has_legacy_counter_schema(self) -> bool:
-        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(guilds)")}
-        return "counter_send_channel_id" in columns
-
-    def _migrate_legacy_counter(self):
-        # カウンターがギルド単位（guilds の列）だった頃の DB を、チャンネル単位のテーブルへ移す。
-        # 全環境の DB が移行済みになれば、この処理と _has_legacy_counter_schema は削除してよい。
-        self.conn.execute(
-            "INSERT INTO guilds (guild_id, active_auto_connect) SELECT guild_id, active_auto_connect FROM guilds_legacy"
-        )
-        self.conn.execute(
-            """
-            INSERT INTO counters (guild_id, channel_id, last_message_id, title, multiplier, total_title)
-            SELECT guild_id, counter_send_channel_id, counter_last_message_id,
-                   counter_title, counter_multiplier, counter_total_title
-            FROM guilds_legacy WHERE counter_send_channel_id != 0
-            """
-        )
-        self.conn.execute(
-            """
-            INSERT INTO counter_users (guild_id, channel_id, user_id, count)
-            SELECT u.guild_id, g.counter_send_channel_id, u.user_id, u.count
-            FROM counter_users_legacy u JOIN guilds_legacy g ON g.guild_id = u.guild_id
-            WHERE g.counter_send_channel_id != 0
-            ORDER BY u.rowid
-            """
-        )
-        self.conn.execute("DROP TABLE counter_users_legacy")
-        self.conn.execute("DROP TABLE guilds_legacy")
 
     def close(self):
         self.conn.close()
