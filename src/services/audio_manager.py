@@ -30,14 +30,11 @@ class AudioManager:
         player = self.players.get(guild_id)
         return player.vc if player else None
 
-    def is_managed_channel(self, guild_id: int, channel_id: int) -> bool:
-        """接続状態に関わらず、指定 VC を管理中か。"""
+    def is_connected_channel(self, guild_id: int, channel_id: int) -> bool:
+        # 一時的な切断中は discord.py が自分で再接続するため、ここでは接続状態を見ない
+        # （こちらで切断・再接続すると、暗号化の準備前に再生して無音になる）
         vc = self.get_vc(guild_id)
         return vc is not None and vc.channel is not None and vc.channel.id == channel_id
-
-    def is_connected_channel(self, guild_id: int, channel_id: int) -> bool:
-        vc = self.get_vc(guild_id)
-        return self.is_managed_channel(guild_id, channel_id) and vc.is_connected()
 
     def speak(self, guild_id: int, text: str, member_id: int | None = None) -> bool:
         player = self.players.get(guild_id)

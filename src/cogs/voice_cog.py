@@ -34,10 +34,8 @@ class VoiceCog(commands.Cog):
             return
 
         guild_id = message.guild.id
-        channel_id = message.channel.id
-        if not self.audio.is_connected_channel(guild_id, channel_id):
-            # 管理中の VC が切断されていた場合は、自動接続設定に関わらず接続し直す
-            if not self.audio.is_managed_channel(guild_id, channel_id) and not self._can_auto_connect(message):
+        if not self.audio.is_connected_channel(guild_id, message.channel.id):
+            if not self._can_auto_connect(message):
                 return
             if not await self.audio.ensure_connected(message.channel):
                 return

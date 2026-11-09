@@ -7,6 +7,7 @@ from services.voicevox_service import VoiceVoxService
 logger = logging.getLogger(__name__)
 
 FFMPEG_BEFORE_OPTIONS = "-fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0"
+CONNECT_WAIT_SECONDS = 10
 
 class AudioPlayer:
     """1 ギルド分の読み上げキュー。
@@ -76,8 +77,19 @@ class AudioPlayer:
                 self._current = None
                 self._queue.task_done()
 
+    async def _wait_connected(self, timeout: float) -> bool:
+        """discord.py の自動再接続が終わるのを待つ。"""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while not self.vc.is_connected():
+            if loop.time() >= deadline:
+                return False
+            await asyncio.sleep(0.5)
+        return True
+
     async def _play(self, wav: bytes):
-        if not self.vc.is_connected():
+        if not await self._wait_connected(CONNECT_WAIT_SECONDS):
+            logger.warning("playback skipped, voice not connected: guild=%s", self.vc.guild.id)
             return
 
         loop = asyncio.get_running_loop()
