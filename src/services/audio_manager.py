@@ -30,9 +30,14 @@ class AudioManager:
         player = self.players.get(guild_id)
         return player.vc if player else None
 
+    def is_managed_channel(self, guild_id: int, channel_id: int) -> bool:
+        """接続状態に関わらず、指定 VC を管理中か。"""
+        vc = self.get_vc(guild_id)
+        return vc is not None and vc.channel is not None and vc.channel.id == channel_id
+
     def is_connected_channel(self, guild_id: int, channel_id: int) -> bool:
         vc = self.get_vc(guild_id)
-        return vc is not None and vc.channel.id == channel_id
+        return self.is_managed_channel(guild_id, channel_id) and vc.is_connected()
 
     def speak(self, guild_id: int, text: str, member_id: int | None = None) -> bool:
         player = self.players.get(guild_id)
