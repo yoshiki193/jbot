@@ -147,9 +147,20 @@ class VoiceCog(commands.Cog):
         await interaction.followup.send(f"あなたのモデルを{vv}の{style}に変更しました", ephemeral = True)
 
     @app_commands.command(description = "subscribe user dict")
-    async def subscribe_user_dict(self, interaction: discord.Interaction, surface: str, pronunciation: str):
+    @app_commands.describe(
+        surface = "読み方を変えたい表記（例: NISA）",
+        pronunciation = "読み方（カタカナ。例: ニーサ）",
+        accent_type = "音が下がる直前の拍の位置（0 は平板）。省略時は自動"
+    )
+    async def subscribe_user_dict(
+        self,
+        interaction: discord.Interaction,
+        surface: str,
+        pronunciation: str,
+        accent_type: app_commands.Range[int, 0, 50] | None = None
+    ):
         await interaction.response.defer(thinking = True)
-        if not await self.voicevox.add_user_dict_word(surface, pronunciation):
+        if not await self.voicevox.add_user_dict_word(surface, pronunciation, accent_type):
             await interaction.followup.send("登録に失敗しました")
             return
 

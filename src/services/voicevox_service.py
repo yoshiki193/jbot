@@ -65,17 +65,21 @@ class VoiceVoxService:
                         return style["id"]
         return None
 
-    async def add_user_dict_word(self, surface: str, pronunciation: str) -> bool:
+    async def add_user_dict_word(self, surface: str, pronunciation: str, accent_type: int | None = None) -> bool:
         try:
-            query = await self._audio_query(surface, 0)
-            accent_phrases = query.get("accent_phrases") or []
-            if not accent_phrases:
-                return False
+            if accent_type is None:
+                # 登録後の読み（pronunciation）から推定する。
+                # surface の元の読みを使うと拍数が合わず 422 になることがある
+                query = await self._audio_query(pronunciation, 0)
+                accent_phrases = query.get("accent_phrases") or []
+                if not accent_phrases:
+                    return False
+                accent_type = accent_phrases[0]["accent"]
 
             payload = {
                 "surface": surface,
                 "pronunciation": pronunciation,
-                "accent_type": accent_phrases[0]["accent"]
+                "accent_type": accent_type
             }
             async with self.session.post(f"{self.base_url}/user_dict_word", params = payload) as resp:
                 if resp.status != 200:
